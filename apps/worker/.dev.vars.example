@@ -1,0 +1,18 @@
+# Keep memory mode until you intentionally connect a Supabase project.
+PERSISTENCE_MODE=supabase
+
+# Add these values locally. Never commit the completed file.
+SUPABASE_URL=
+SUPABASE_SECRET_KEY=
+
+# Add these during final Cloudflare setup.
+TURNSTILE_MODE=cloudflare
+TURNSTILE_SECRET_KEY=
+TURNSTILE_EXPECTED_HOSTNAME=
+HASH_SALT=
+
+# Add these during final Retell setup.
+RETELL_MODE=retell
+RETELL_API_KEY=
+RETELL_AGENT_ID=
+RETELL_FROM_NUMBER=

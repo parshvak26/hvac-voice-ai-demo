@@ -1,0 +1,30 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "hvac-voice-ai-demo-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "secrets": {
+    "required": [
+      "RETELL_API_KEY",
+      "RETELL_AGENT_ID",
+      "RETELL_FROM_NUMBER",
+      "SUPABASE_URL",
+      "SUPABASE_SECRET_KEY",
+      "TURNSTILE_SECRET_KEY",
+      "HASH_SALT"
+    ]
+  },
+  "vars": {
+    "ALLOWED_ORIGINS": "https://YOUR_GITHUB_USER.github.io",
+    "DEMO_COMPANY_NAME": "Austin Comfort HVAC",
+    "RETELL_MODE": "retell",
+    "PERSISTENCE_MODE": "supabase",
+    "TURNSTILE_MODE": "cloudflare",
+    "TURNSTILE_EXPECTED_HOSTNAME": "YOUR_GITHUB_USER.github.io",
+    "LOG_MODE": "structured",
+    "MAX_CALLS_PER_DAY": "25",
+    "MAX_CALLS_PER_IP_PER_DAY": "3",
+    "PHONE_COOLDOWN_MINUTES": "15",
+    "MAX_CALL_DURATION_SECONDS": "300"
+  }
+}

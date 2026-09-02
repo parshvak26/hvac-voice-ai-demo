@@ -1,0 +1,27 @@
+{
+  "name": "@hvac-demo/worker",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8787",
+    "types": "wrangler types",
+    "lint": "eslint src --max-warnings 0",
+    "test": "vitest run",
+    "build": "wrangler deploy --dry-run --outdir dist"
+  },
+  "dependencies": {
+    "@hvac-demo/shared": "0.1.0",
+    "@supabase/supabase-js": "^2.112.4",
+    "libphonenumber-js": "^1.13.12"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.9.1",
+    "globals": "^17.12.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.69.0",
+    "vitest": "^4.1.11",
+    "wrangler": "^4.127.1"
+  }
+}
