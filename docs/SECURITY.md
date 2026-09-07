@@ -18,7 +18,7 @@ This review covers the checked-in Phase A code. Live account settings must still
 - The Worker checks exact browser origins.
 - Request content type and size are limited.
 - Unknown request fields are rejected.
-- Phone numbers are validated again on the server and restricted to valid US numbers.
+- Phone numbers are validated again on the server and restricted to valid US or Indian numbers; Indian input must include `+91`.
 - Both consent values must be explicitly true.
 - Public responses use safe error codes and never include stack traces.
 

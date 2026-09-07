@@ -59,6 +59,20 @@ describe("worker routes", () => {
     expect(body.requestId).toMatch(/^[0-9a-f-]{36}$/i);
   });
 
+  it("accepts an Indian destination with an explicit +91 country code", async () => {
+    const app = createWorkerApp();
+    const response = await app.fetch(
+      createRequest({
+        phoneNumber: "+91 98765 43210",
+        consentToAiCall: true,
+        consentToRecording: true,
+      }),
+      env,
+    );
+
+    expect(response.status).toBe(202);
+  });
+
   it("passes the configured maximum duration to the call provider", async () => {
     let maximumDuration = 0;
     let correlationId = "";

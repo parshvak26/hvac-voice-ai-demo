@@ -33,6 +33,16 @@ function isUsE164Number(value: string): boolean {
   );
 }
 
+function isSupportedDestinationE164Number(value: string): boolean {
+  const parsed = parsePhoneNumberFromString(value);
+  return Boolean(
+    parsed &&
+      (parsed.country === "US" || parsed.country === "IN") &&
+      parsed.isValid() &&
+      parsed.number === value,
+  );
+}
+
 function parseRetryAfter(value: string | null): number | undefined {
   if (!value || !/^\d+$/.test(value)) return undefined;
   const seconds = Number(value);
@@ -61,7 +71,7 @@ export class RealRetellClient implements RetellClient {
     input: CreateOutboundCallInput,
   ): Promise<CreateOutboundCallResult> {
     if (
-      !isUsE164Number(input.toNumberE164) ||
+      !isSupportedDestinationE164Number(input.toNumberE164) ||
       input.maxDurationSeconds < 60 ||
       input.maxDurationSeconds > 3_600
     ) {

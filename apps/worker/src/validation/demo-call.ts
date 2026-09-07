@@ -23,6 +23,9 @@ const allowedKeys = new Set([
   "consentToRecording",
   "turnstileToken",
 ]);
+const supportedDestinationCountries = new Set(["US", "IN"]);
+const invalidPhoneMessage =
+  "Enter a valid US number, or an Indian number beginning with +91.";
 
 export function validateCreateDemoCallBody(
   input: unknown,
@@ -48,16 +51,25 @@ export function validateCreateDemoCallBody(
     return {
       ok: false,
       code: "invalid_phone_number",
-      message: "Enter a valid 10-digit US phone number.",
+      message: invalidPhoneMessage,
     };
   }
 
-  const parsed = parsePhoneNumberFromString(body.phoneNumber.trim(), "US");
-  if (!parsed || parsed.country !== "US" || !parsed.isValid()) {
+  const phoneNumber = body.phoneNumber.trim();
+  const parsed = parsePhoneNumberFromString(
+    phoneNumber,
+    phoneNumber.startsWith("+") ? undefined : "US",
+  );
+  if (
+    !parsed ||
+    !parsed.country ||
+    !supportedDestinationCountries.has(parsed.country) ||
+    !parsed.isValid()
+  ) {
     return {
       ok: false,
       code: "invalid_phone_number",
-      message: "Enter a valid 10-digit US phone number.",
+      message: invalidPhoneMessage,
     };
   }
 

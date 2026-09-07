@@ -8,7 +8,7 @@ import {
   type RefObject,
 } from "react";
 import { TurnstileWidget } from "./TurnstileWidget";
-import { validateUsPhoneNumber } from "../lib/phone";
+import { validateSupportedPhoneNumber } from "../lib/phone";
 import type {
   DemoCallClient,
   DemoCallResult,
@@ -80,7 +80,7 @@ export function DemoCallForm({
     setConsentError("");
     setVerificationError("");
 
-    const phone = validateUsPhoneNumber(requestedPhoneNumber);
+    const phone = validateSupportedPhoneNumber(requestedPhoneNumber);
     if (!phone.isValid) {
       setPhoneError(phone.error);
       onStatusChange("invalid_number");
@@ -206,7 +206,7 @@ export function DemoCallForm({
               )
             ) {
               throw new Error(
-                "Use a US phone number, both consent choices, and a supported mock outcome.",
+                "Use a US or +91 Indian phone number, both consent choices, and a supported mock outcome.",
               );
             }
 
@@ -275,17 +275,16 @@ export function DemoCallForm({
       </div>
 
       <div className="field-group">
-        <label htmlFor="phone-number">US phone number</label>
+        <label htmlFor="phone-number">US or Indian phone number</label>
         <div className={`phone-field ${phoneError ? "has-error" : ""}`}>
-          <span aria-hidden="true">+1</span>
           <input
             ref={phoneInputRef}
             id="phone-number"
             name="phoneNumber"
             type="tel"
             inputMode="tel"
-            autoComplete="tel-national"
-            placeholder="(512) 555-1234"
+            autoComplete="tel"
+            placeholder="+91 98765 43210"
             value={phoneNumber}
             onChange={(event) => {
               setPhoneNumber(event.target.value);
@@ -303,10 +302,10 @@ export function DemoCallForm({
         ) : (
           <p className="field-help" id="phone-help">
             {isLive
-              ? "US numbers only. Use a number you are allowed to answer."
+              ? "India: include +91. US numbers may use normal 10-digit formatting."
               : isUnconfigured
-                ? "US numbers only. Calling will be available after final setup."
-                : "US numbers only. This local mock never dials it."}
+                ? "Use a US number, or include +91 for India."
+                : "Use a US number, or include +91 for India. This mock never dials it."}
           </p>
         )}
       </div>

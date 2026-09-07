@@ -5,7 +5,7 @@ A portfolio-quality demo for a fictional US HVAC voice AI receptionist. Mileston
 ## What is included now
 
 - Responsive React + Vite landing page
-- US phone-number parsing and validation
+- US and Indian phone-number parsing and validation (`+91` is required for India)
 - Separate AI-call and recording/transcription consent
 - Explicit call lifecycle state machine
 - Complete, failed, and rate-limited mock paths
@@ -14,7 +14,7 @@ A portfolio-quality demo for a fictional US HVAC voice AI receptionist. Mileston
 - Unit tests for phone validation and important state transitions
 - Local Cloudflare Worker with typed request and response contracts
 - `POST /api/demo-call` and `GET /api/demo-result/:publicToken`
-- Server-side US phone validation, consent checks, and strict CORS
+- Server-side US/India phone validation, consent checks, and strict CORS
 - In-memory local request storage and a mock Retell provider
 - Optional server-only Supabase persistence for demo requests and calls
 - Versioned database migration with Row Level Security and restricted grants
@@ -25,7 +25,7 @@ A portfolio-quality demo for a fictional US HVAC voice AI receptionist. Mileston
 - Configurable maximum call duration passed to the call provider
 - Atomic Supabase request reservation so fast duplicate requests cannot bypass limits
 - Real Retell `POST /v2/create-phone-call` adapter behind the existing provider interface
-- US-only outbound validation, per-call duration override, and opaque correlation metadata
+- US/India outbound validation, per-call duration override, and opaque correlation metadata
 - Safe Retell configuration, rejection, rate-limit, network, and malformed-response handling
 - A complete fictional HVAC agent prompt and deferred Retell setup guide
 - Verified Retell webhook ingestion for started, ended, and analyzed calls
@@ -39,12 +39,12 @@ A portfolio-quality demo for a fictional US HVAC voice AI receptionist. Mileston
 - Separate production Worker configuration and simple deployment instructions
 - A completed code-level security review and manual live-test checklist
 
-Real Retell calling is implemented but not activated. Retell, Turnstile, Supabase, GitHub Pages, and Cloudflare deployment still need their final account settings. Local development uses clearly marked local-only adapters.
+Real Retell calling is deployed. Retell, Turnstile, Supabase, GitHub Pages, and Cloudflare are configured; final live phone acceptance testing remains. Local development uses clearly marked local-only adapters.
 
 ## How it fits together
 
 1. The GitHub Pages website collects the phone number and explicit consent.
-2. The Cloudflare Worker validates the request, Turnstile, limits, and US number.
+2. The Cloudflare Worker validates the request, Turnstile, limits, and supported US/India number.
 3. The Worker asks Retell to place one outbound call.
 4. Verified Retell webhooks save the lifecycle, transcript, private recording URL, and structured analysis in Supabase.
 5. The website polls the Worker and shows only the sanitized result.

@@ -22,7 +22,7 @@ The Worker also sends a 5-minute limit with every call. This is a second cost gu
 ## 2. Add a US phone number
 
 1. Add one Retell-managed or imported US phone number.
-2. Allow outbound calls to the United States only.
+2. Allow outbound calls to the United States and India only.
 3. Save the full number in E.164 form, such as `+1` followed by ten digits.
 
 Do not buy the number until final end-to-end testing is ready to begin.
@@ -89,7 +89,7 @@ The website only shows a completed result after the structured fields and transc
 The Worker uses Retell’s `POST /v2/create-phone-call` endpoint. It sends:
 
 - the owned Retell phone number,
-- the validated US destination number,
+- the validated US or Indian destination number,
 - the selected agent ID,
 - the maximum call duration,
 - the fictional company settings,

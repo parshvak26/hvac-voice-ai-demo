@@ -16,7 +16,21 @@ describe("validateCreateDemoCallBody", () => {
     });
   });
 
-  it.each(["+44 20 7946 0958", "+91 98765 43210", "555-1234"])(
+  it("normalizes a valid Indian number with an explicit +91 country code", () => {
+    const result = validateCreateDemoCallBody({
+      phoneNumber: "+91 98765 43210",
+      consentToAiCall: true,
+      consentToRecording: true,
+      turnstileToken: "verified-token",
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: { phoneE164: "+919876543210" },
+    });
+  });
+
+  it.each(["+44 20 7946 0958", "+91 1234", "555-1234"])(
     "rejects unsupported number %s",
     (phoneNumber) => {
       expect(

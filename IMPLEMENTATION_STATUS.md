@@ -1,10 +1,10 @@
 # Implementation Status
 
-Last updated: September 2, 2026
+Last updated: September 7, 2026
 
 ## Current milestone
 
-Milestones 0 through 7 are complete. Phase A implementation is complete. External account setup, deployment, and live end-to-end acceptance testing remain intentionally deferred.
+Milestones 0 through 7 are complete. The website and Worker are deployed and the external services are configured. Final live end-to-end acceptance testing remains. At the user's request, India was added as a supported test destination alongside the original US scope; Indian input must include `+91`.
 
 ## Repository state
 
@@ -121,6 +121,8 @@ These are intentionally deferred and are not needed for local frontend work:
 - Recheck the optional browser-agent tool in a browser that supports WebMCP; this local environment does not expose a supported validation context.
 
 ## Completed items
+
+- Added user-approved Indian destination support alongside US support, with explicit `+91` input, client/server/provider validation, updated UI guidance, tests, and deployment documentation.
 
 - Read the complete project specification and start prompt.
 - Inspected the repository without assuming it was empty.

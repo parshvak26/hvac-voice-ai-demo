@@ -12,8 +12,8 @@ const statusContent: Record<
   },
   invalid_number: {
     eyebrow: "Check the number",
-    title: "We need a valid US phone number",
-    message: "Use a 10-digit US number, such as (512) 555-1234.",
+    title: "We need a valid US or Indian number",
+    message: "For India, include +91, such as +91 98765 43210.",
   },
   consent_missing: {
     eyebrow: "Your permission matters",

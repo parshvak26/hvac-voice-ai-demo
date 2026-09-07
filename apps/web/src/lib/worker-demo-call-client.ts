@@ -99,7 +99,7 @@ function readApiError(value: unknown, status: number): Error {
     return new Error("The anti-abuse check is temporarily unavailable. Please try again.");
   }
   if (code === "invalid_phone_number") {
-    return new Error("Enter a valid US phone number and try again.");
+    return new Error("Enter a valid US number, or an Indian number beginning with +91.");
   }
   if (code === "consent_required") {
     return new Error("Confirm both consent choices before continuing.");

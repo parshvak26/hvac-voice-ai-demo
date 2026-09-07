@@ -68,7 +68,25 @@ describe("RealRetellClient", () => {
     );
   });
 
-  it("blocks a non-US destination before contacting Retell", async () => {
+  it("creates an Indian outbound call when the destination includes +91", async () => {
+    const request = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      expect(body.to_number).toBe("+919876543210");
+      return Response.json(
+        { call_id: "call_india_test_123", call_status: "registered" },
+        { status: 201 },
+      );
+    }) as unknown as typeof fetch;
+
+    await expect(
+      createClient(request).createOutboundCall({
+        ...input,
+        toNumberE164: "+919876543210",
+      }),
+    ).resolves.toEqual({ callId: "call_india_test_123" });
+  });
+
+  it("blocks an unsupported destination before contacting Retell", async () => {
     const request = vi.fn() as unknown as typeof fetch;
     const client = createClient(request);
 

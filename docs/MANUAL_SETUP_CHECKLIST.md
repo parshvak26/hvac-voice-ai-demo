@@ -20,7 +20,7 @@ Do these steps only after all accounts and keys are ready.
 
 1. [ ] Open the deployed GitHub Page on a computer.
 2. [ ] Open it again on a phone-sized screen.
-3. [ ] Enter a valid US test number you control.
+3. [ ] Enter a valid US number you control, or an Indian number beginning with `+91`.
 4. [ ] Check both consent boxes.
 5. [ ] Complete Turnstile.
 6. [ ] Submit the request.
@@ -48,7 +48,7 @@ Do these steps only after all accounts and keys are ready.
 ## Test failures safely
 
 - [ ] Try the same number again too soon and confirm it is rate limited.
-- [ ] Try a non-US number and confirm it is rejected before Retell.
+- [ ] Try a number outside the US and India and confirm it is rejected before Retell.
 - [ ] Leave one consent box empty and confirm the form stops.
 - [ ] Use an invalid Turnstile response and confirm the Worker stops.
 - [ ] Send a webhook with an invalid signature and confirm it returns `401`.
