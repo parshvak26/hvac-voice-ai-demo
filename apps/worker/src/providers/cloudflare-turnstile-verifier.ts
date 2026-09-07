@@ -8,6 +8,16 @@ interface SiteverifyResponse {
   success?: boolean;
   hostname?: string;
   action?: string;
+  "error-codes"?: unknown;
+}
+
+function safeErrorCodes(result: SiteverifyResponse): string[] {
+  const codes = result?.["error-codes"];
+  if (!Array.isArray(codes)) return [];
+  return codes
+    .filter((code): code is string => typeof code === "string")
+    .slice(0, 5)
+    .map((code) => code.slice(0, 64));
 }
 
 export class CloudflareTurnstileVerifier implements TurnstileVerifier {
@@ -18,28 +28,51 @@ export class CloudflareTurnstileVerifier implements TurnstileVerifier {
   ) {}
 
   async verify(input: TurnstileVerificationInput): Promise<boolean> {
-    const form = new FormData();
-    form.set("secret", this.secretKey);
-    form.set("response", input.token);
-    form.set("remoteip", input.remoteIp);
-    form.set("idempotency_key", crypto.randomUUID());
+    const form = new URLSearchParams({
+      secret: this.secretKey,
+      response: input.token,
+      remoteip: input.remoteIp,
+    });
 
     let response: Response;
     try {
-      response = await this.request(
+      const request = this.request;
+      response = await request(
         "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-        { method: "POST", body: form },
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: form,
+        },
       );
-    } catch {
-      throw new TurnstileUnavailableError();
+    } catch (error) {
+      const detail =
+        error instanceof Error
+          ? `${error.name}:${error.message}`.slice(0, 128)
+          : "unknown";
+      throw new TurnstileUnavailableError(
+        "network_error",
+        null,
+        [],
+        detail,
+      );
     }
-    if (!response.ok) throw new TurnstileUnavailableError();
 
     let result: SiteverifyResponse;
     try {
       result = (await response.json()) as SiteverifyResponse;
     } catch {
-      throw new TurnstileUnavailableError();
+      throw new TurnstileUnavailableError(
+        "invalid_response",
+        response.status,
+      );
+    }
+    if (!response.ok) {
+      throw new TurnstileUnavailableError(
+        "http_error",
+        response.status,
+        safeErrorCodes(result),
+      );
     }
 
     return (

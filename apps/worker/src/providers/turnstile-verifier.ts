@@ -15,7 +15,13 @@ export class TurnstileConfigurationError extends Error {
 }
 
 export class TurnstileUnavailableError extends Error {
-  constructor() {
+  constructor(
+    readonly reason: "network_error" | "http_error" | "invalid_response" =
+      "network_error",
+    readonly httpStatus: number | null = null,
+    readonly errorCodes: readonly string[] = [],
+    readonly detail: string | null = null,
+  ) {
     super("Turnstile verification is temporarily unavailable.");
     this.name = "TurnstileUnavailableError";
   }

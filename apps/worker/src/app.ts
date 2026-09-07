@@ -414,6 +414,13 @@ export function createWorkerApp(options: WorkerAppOptions = {}) {
             writeWorkerLog(env, "error", "demo_call_failed", {
               errorCategory: "verification_unavailable",
               httpStatus: 503,
+              status: error.httpStatus,
+              result:
+                error.errorCodes.length > 0
+                  ? `${error.reason}:${error.errorCodes.join(",")}`
+                  : error.detail
+                    ? `${error.reason}:${error.detail}`
+                    : error.reason,
             });
             return withCors(
               errorResponse(

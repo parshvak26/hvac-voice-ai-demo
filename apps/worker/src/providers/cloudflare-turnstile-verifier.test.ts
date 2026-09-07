@@ -3,12 +3,37 @@ import { CloudflareTurnstileVerifier } from "./cloudflare-turnstile-verifier";
 import { TurnstileUnavailableError } from "./turnstile-verifier";
 
 describe("CloudflareTurnstileVerifier", () => {
+  it("calls fetch without binding it to the verifier instance", async () => {
+    const request = (function (this: unknown) {
+      expect(this).toBeUndefined();
+      return Promise.resolve(
+        Response.json({
+          success: true,
+          hostname: "demo.example.test",
+          action: "demo_call",
+        }),
+      );
+    }) as typeof fetch;
+    const verifier = new CloudflareTurnstileVerifier(
+      "private-secret",
+      "demo.example.test",
+      request,
+    );
+
+    await expect(
+      verifier.verify({ token: "browser-token", remoteIp: "203.0.113.10" }),
+    ).resolves.toBe(true);
+  });
+
   it("checks the token on Cloudflare and validates hostname and action", async () => {
     const request = (async (input: RequestInfo | URL, init?: RequestInit) => {
       expect(String(input)).toBe(
         "https://challenges.cloudflare.com/turnstile/v0/siteverify",
       );
-      const form = init?.body as FormData;
+      expect(init?.headers).toEqual({
+        "Content-Type": "application/x-www-form-urlencoded",
+      });
+      const form = init?.body as URLSearchParams;
       expect(form.get("secret")).toBe("private-secret");
       expect(form.get("response")).toBe("browser-token");
       expect(form.get("remoteip")).toBe("203.0.113.10");
@@ -63,5 +88,32 @@ describe("CloudflareTurnstileVerifier", () => {
     await expect(
       verifier.verify({ token: "browser-token", remoteIp: "203.0.113.10" }),
     ).rejects.toBeInstanceOf(TurnstileUnavailableError);
+  });
+
+  it("keeps only safe diagnostic fields for a Siteverify HTTP error", async () => {
+    const request = (async () =>
+      Response.json(
+        {
+          success: false,
+          "error-codes": ["invalid-input-secret"],
+        },
+        { status: 400 },
+      )) as typeof fetch;
+    const verifier = new CloudflareTurnstileVerifier(
+      "private-secret",
+      "demo.example.test",
+      request,
+    );
+
+    const error = await verifier
+      .verify({ token: "browser-token", remoteIp: "203.0.113.10" })
+      .catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(TurnstileUnavailableError);
+    expect(error).toMatchObject({
+      reason: "http_error",
+      httpStatus: 400,
+      errorCodes: ["invalid-input-secret"],
+    });
   });
 });
