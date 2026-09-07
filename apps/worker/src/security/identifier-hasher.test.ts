@@ -10,6 +10,10 @@ const persistentEnv = {
   PERSISTENCE_MODE: "supabase",
 } as WorkerEnv;
 
+const localEnv = {
+  PERSISTENCE_MODE: "memory",
+} as WorkerEnv;
+
 describe("IdentifierHasher", () => {
   it("creates deterministic private hashes without exposing the input", async () => {
     const hasher = new IdentifierHasher("server-only-test-salt");
@@ -27,5 +31,14 @@ describe("IdentifierHasher", () => {
     expect(() =>
       createIdentifierHasher(persistentEnv, "worker.example.test"),
     ).toThrow(HashConfigurationError);
+  });
+
+  it("creates and reuses an ephemeral salt only for local request paths", async () => {
+    const firstHasher = createIdentifierHasher(localEnv, "localhost");
+    const secondHasher = createIdentifierHasher(localEnv, "127.0.0.1");
+
+    expect(await firstHasher.hash("same-value")).toBe(
+      await secondHasher.hash("same-value"),
+    );
   });
 });

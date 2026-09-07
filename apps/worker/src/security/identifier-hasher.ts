@@ -8,7 +8,12 @@ export class HashConfigurationError extends Error {
   }
 }
 
-const localEphemeralSalt = crypto.randomUUID();
+let localEphemeralSalt: string | undefined;
+
+function getLocalEphemeralSalt(): string {
+  localEphemeralSalt ??= crypto.randomUUID();
+  return localEphemeralSalt;
+}
 
 export class IdentifierHasher {
   private keyPromise: Promise<CryptoKey> | null = null;
@@ -40,7 +45,7 @@ export function createIdentifierHasher(
 ): IdentifierHasher {
   if (env.HASH_SALT) return new IdentifierHasher(env.HASH_SALT);
   if (env.PERSISTENCE_MODE === "memory" && isLocalHostname(requestHostname)) {
-    return new IdentifierHasher(localEphemeralSalt);
+    return new IdentifierHasher(getLocalEphemeralSalt());
   }
   throw new HashConfigurationError();
 }
