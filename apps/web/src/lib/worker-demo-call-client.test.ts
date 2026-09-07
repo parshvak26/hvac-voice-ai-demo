@@ -31,6 +31,29 @@ const completeResult = {
 };
 
 describe("WorkerDemoCallClient", () => {
+  it("calls browser fetch without binding it to the client instance", async () => {
+    let call = 0;
+    const request = (function (this: unknown) {
+      expect(this).toBeUndefined();
+      call += 1;
+      return Promise.resolve(
+        call === 1
+          ? new Response(
+              JSON.stringify({ status: "call_requested", requestId }),
+              { status: 202 },
+            )
+          : new Response(JSON.stringify(completeResult), { status: 200 }),
+      );
+    }) as typeof fetch;
+    const client = new WorkerDemoCallClient("https://api.example.test", {
+      request,
+      sleep: async () => undefined,
+    });
+
+    await expect(client.startDemoCall(demoRequest, () => undefined))
+      .resolves.toMatchObject({ analysis: completeResult.analysis });
+  });
+
   it("sends only safe request fields and bridges a fast completed lifecycle", async () => {
     let now = 0;
     let postedBody = "";

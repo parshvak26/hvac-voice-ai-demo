@@ -254,7 +254,8 @@ export class WorkerDemoCallClient implements DemoCallClient {
     };
     let response: Response;
     try {
-      response = await this.request(`${this.apiOrigin}/api/demo-call`, {
+      const request = this.request;
+      response = await request(`${this.apiOrigin}/api/demo-call`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -285,7 +286,8 @@ export class WorkerDemoCallClient implements DemoCallClient {
       await this.sleep(this.pollIntervalMilliseconds, signal);
       let resultResponse: Response;
       try {
-        resultResponse = await this.request(
+        const request = this.request;
+        resultResponse = await request(
           `${this.apiOrigin}/api/demo-result/${encodeURIComponent(created.requestId)}`,
           { headers: { Accept: "application/json" }, signal },
         );
