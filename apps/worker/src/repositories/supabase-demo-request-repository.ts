@@ -50,7 +50,10 @@ interface CallRow {
 }
 
 export class PersistenceError extends Error {
-  constructor(operation: string, code?: string) {
+  constructor(
+    readonly operation: string,
+    readonly code?: string,
+  ) {
     super(`Supabase operation failed: ${operation}${code ? ` (${code})` : ""}`);
     this.name = "PersistenceError";
   }

@@ -33,6 +33,7 @@ import {
 } from "./repositories/create-demo-request-repository";
 import { InMemoryDemoRequestRepository } from "./repositories/in-memory-demo-request-repository";
 import type { DemoRequestRepository } from "./repositories/demo-request-repository";
+import { PersistenceError } from "./repositories/supabase-demo-request-repository";
 import { DemoCallService, RateLimitError } from "./services/demo-call-service";
 import {
   createIdentifierHasher,
@@ -457,6 +458,22 @@ export function createWorkerApp(options: WorkerAppOptions = {}) {
                 503,
                 "service_unavailable",
                 "Database persistence is not configured.",
+              ),
+            );
+          }
+          if (error instanceof PersistenceError) {
+            writeWorkerLog(env, "error", "demo_call_failed", {
+              errorCategory: "persistence",
+              httpStatus: 503,
+              result: error.code
+                ? `${error.operation}:${error.code}`
+                : error.operation,
+            });
+            return withCors(
+              errorResponse(
+                503,
+                "service_unavailable",
+                "The demo database is temporarily unavailable.",
               ),
             );
           }

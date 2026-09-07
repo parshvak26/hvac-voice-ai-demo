@@ -27,6 +27,22 @@ function createClient(request: typeof fetch) {
 }
 
 describe("RealRetellClient", () => {
+  it("calls fetch without binding it to the Retell client instance", async () => {
+    const request = (function (this: unknown) {
+      expect(this).toBeUndefined();
+      return Promise.resolve(
+        Response.json(
+          { call_id: "call_test_123", call_status: "registered" },
+          { status: 201 },
+        ),
+      );
+    }) as typeof fetch;
+
+    await expect(createClient(request).createOutboundCall(input)).resolves.toEqual({
+      callId: "call_test_123",
+    });
+  });
+
   it("creates a US outbound call with safe correlation and a duration cap", async () => {
     const request = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       const headers = new Headers(init?.headers);

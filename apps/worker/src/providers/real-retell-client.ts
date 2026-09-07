@@ -80,7 +80,8 @@ export class RealRetellClient implements RetellClient {
 
     let response: Response;
     try {
-      response = await this.request(createPhoneCallUrl, {
+      const request = this.request;
+      response = await request(createPhoneCallUrl, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${this.options.apiKey}`,
