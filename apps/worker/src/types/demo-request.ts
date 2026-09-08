@@ -123,3 +123,22 @@ export type RetellWebhookApplyResult =
   | "applied"
   | "duplicate"
   | "ignored";
+
+export interface CreateBookingDetailsRecord {
+  demoRequestId: string;
+  email: string;
+  addressLine1: string;
+  city: string;
+  region: string;
+  postalCode: string;
+  requestedDate: string;
+  requestedTime: string;
+  timezone: "America/Chicago";
+  tokenExpiresAt: string;
+  submittedAt: string;
+}
+
+export type BookingDetailsSubmissionResult =
+  | "created"
+  | "already_submitted"
+  | "unavailable";

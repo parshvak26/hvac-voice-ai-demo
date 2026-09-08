@@ -39,11 +39,35 @@ export interface PublicTranscriptLine {
   text: string;
 }
 
+export interface BookingFormOffer {
+  token: string;
+  expiresAt: string;
+  timezone: "America/Chicago";
+  suggestedDate: string | null;
+  suggestedTime: string | null;
+}
+
+export interface SubmitBookingDetailsRequest {
+  token: string;
+  email: string;
+  addressLine1: string;
+  city: string;
+  region: string;
+  postalCode: string;
+  requestedDate: string;
+  requestedTime: string;
+}
+
+export interface SubmitBookingDetailsResponse {
+  status: "details_received";
+}
+
 export interface DemoResultResponse {
   status: PublicDemoStatus;
   durationSeconds?: number;
   analysis?: DemoCallAnalysis;
   transcript?: PublicTranscriptLine[];
+  bookingForm?: BookingFormOffer;
 }
 
 export type ApiErrorCode =
@@ -61,6 +85,10 @@ export type ApiErrorCode =
   | "request_not_found"
   | "method_not_allowed"
   | "payload_too_large"
+  | "booking_unavailable"
+  | "booking_token_invalid"
+  | "booking_token_expired"
+  | "booking_already_submitted"
   | "invalid_webhook_signature"
   | "service_unavailable"
   | "internal_error";

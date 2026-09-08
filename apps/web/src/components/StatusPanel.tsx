@@ -1,5 +1,6 @@
 import type { DemoState } from "../lib/demo-state";
-import type { DemoCallStatus } from "../types/demo-call";
+import type { DemoCallClient, DemoCallStatus } from "../types/demo-call";
+import { BookingDetailsForm } from "./BookingDetailsForm";
 
 const statusContent: Record<
   DemoCallStatus,
@@ -142,9 +143,11 @@ function ResultDetails({ state }: { state: DemoState }) {
 
 export function StatusPanel({
   state,
+  client,
   onReset,
 }: {
   state: DemoState;
+  client: DemoCallClient;
   onReset: () => void;
 }) {
   const content = statusContent[state.status];
@@ -207,6 +210,10 @@ export function StatusPanel({
       ) : null}
 
       <ResultDetails state={state} />
+
+      {state.status === "analysis_ready" && state.result?.bookingForm ? (
+        <BookingDetailsForm client={client} offer={state.result.bookingForm} />
+      ) : null}
 
       {["analysis_ready", "failed", "rate_limited"].includes(state.status) ? (
         <button className="text-button" type="button" onClick={onReset}>

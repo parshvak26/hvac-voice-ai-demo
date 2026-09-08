@@ -8,6 +8,7 @@
     "DEMO_COMPANY_NAME": "Austin Comfort HVAC",
     "DEMO_TIMEZONE": "America/Chicago",
     "DEMO_BOOKING_ENABLED": "false",
+    "DEMO_DETAILS_FORM_ENABLED": "false",
     "RETELL_MODE": "mock",
     "PERSISTENCE_MODE": "memory",
     "TURNSTILE_MODE": "local_mock",

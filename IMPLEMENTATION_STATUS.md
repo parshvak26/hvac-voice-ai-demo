@@ -1,10 +1,10 @@
 # Implementation Status
 
-Last updated: September 7, 2026
+Last updated: September 8, 2026
 
 ## Current milestone
 
-Milestones 0 through 7 are complete. The website and Worker are deployed and the external services are configured. Final live end-to-end acceptance testing remains. At the user's request, India was added as a supported test destination alongside the original US scope; Indian input must include `+91`.
+Phase A milestones 0 through 7 are complete. V2 Milestone 2 adds a secure post-call details form for qualified calls, signed one-hour tokens, one submission per call, and private Supabase storage. Google Calendar availability and event creation remain off until the next milestone. India is supported alongside the original US scope; Indian input must include `+91`.
 
 ## Repository state
 

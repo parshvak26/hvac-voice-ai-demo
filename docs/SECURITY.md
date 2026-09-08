@@ -47,6 +47,14 @@ This review covers the checked-in Phase A code. Live account settings must still
 - Audio is not copied into public storage and is never exposed by the public API.
 - Public API responses are marked `no-store`.
 
+### Post-call details form
+
+- The form appears only after a completed, qualified, non-emergency call that is eligible for scheduling.
+- Its HMAC-signed token is tied to one opaque call ID and expires one hour after the call ends.
+- The Worker validates every field again and Supabase atomically allows only one submission per call.
+- Email, address, ZIP, and requested timing stay in a server-only table and are never logged or returned in the public result.
+- The form clearly says that a requested time is not a confirmed appointment; calendar creation remains disabled.
+
 ### Website
 
 - Production builds omit source maps.

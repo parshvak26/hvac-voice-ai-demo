@@ -14,6 +14,7 @@ A portfolio-quality demo for a fictional US HVAC voice AI receptionist. Mileston
 - Unit tests for phone validation and important state transitions
 - Local Cloudflare Worker with typed request and response contracts
 - `POST /api/demo-call` and `GET /api/demo-result/:publicToken`
+- Secure `POST /api/booking-details` post-call handoff for qualified calls
 - Server-side US/India phone validation, consent checks, and strict CORS
 - In-memory local request storage and a mock Retell provider
 - Optional server-only Supabase persistence for demo requests and calls
@@ -38,6 +39,7 @@ A portfolio-quality demo for a fictional US HVAC voice AI receptionist. Mileston
 - GitHub Pages deployment automation that runs lint, tests, and the production build first
 - Separate production Worker configuration and simple deployment instructions
 - A completed code-level security review and manual live-test checklist
+- One-hour signed form tokens, one submission per call, and private contact/address storage
 
 Real Retell calling is deployed. Retell, Turnstile, Supabase, GitHub Pages, and Cloudflare are configured; final live phone acceptance testing remains. Local development uses clearly marked local-only adapters.
 
@@ -48,6 +50,7 @@ Real Retell calling is deployed. Retell, Turnstile, Supabase, GitHub Pages, and 
 3. The Worker asks Retell to place one outbound call.
 4. Verified Retell webhooks save the lifecycle, transcript, private recording URL, and structured analysis in Supabase.
 5. The website polls the Worker and shows only the sanitized result.
+6. After a qualified call, the website opens a secure form and saves the customer's requested details privately. Calendar availability and event creation remain disabled until the next milestone.
 
 ## Start it on your computer
 
@@ -97,7 +100,7 @@ Keep the website running. Then:
 
 The website uses its browser mock when `VITE_DEMO_API_URL` is empty. During final setup, setting that value to the Worker origin switches the same page to the real API and webhook-driven result flow.
 
-The Worker uses memory and mock Retell modes by default, so sample requests disappear whenever it stops and no phone is dialed. Follow [the Supabase setup guide](docs/SUPABASE_SETUP.md), [the abuse-protection setup guide](docs/ABUSE_PROTECTION_SETUP.md), and [the Retell setup guide](retell/SETUP.md) only when final setup begins. Apply all three Supabase migrations in filename order at that time.
+The Worker uses memory and mock Retell modes by default, so sample requests disappear whenever it stops and no phone is dialed. Follow [the Supabase setup guide](docs/SUPABASE_SETUP.md), [the abuse-protection setup guide](docs/ABUSE_PROTECTION_SETUP.md), and [the Retell setup guide](retell/SETUP.md) only when final setup begins. Apply all Supabase migrations in filename order at that time.
 
 ## Check the project
 
@@ -131,4 +134,4 @@ The Worker settings are in `apps/worker/wrangler.jsonc`. Never put private keys 
 
 ## Current scope
 
-Phase A code is complete. Live acceptance is still pending because no account has been connected and no real call has been placed. See `IMPLEMENTATION_STATUS.md` for the detailed status. Phase B is not included.
+Phase A is live, and the V2 secure post-call form is implemented. Google Calendar availability and event creation are intentionally not included yet. See `IMPLEMENTATION_STATUS.md` for the detailed status.

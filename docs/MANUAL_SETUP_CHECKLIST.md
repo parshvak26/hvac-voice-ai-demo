@@ -4,7 +4,7 @@ Do these steps only after all accounts and keys are ready.
 
 ## Before the call
 
-- [ ] All three Supabase migrations were applied in filename order.
+- [ ] All four Supabase migrations were applied in filename order.
 - [ ] Supabase browser roles cannot read or write the private tables.
 - [ ] The Turnstile widget allows only the final GitHub Pages hostname.
 - [ ] The Worker uses `RETELL_MODE=retell`.
@@ -32,6 +32,8 @@ Do these steps only after all accounts and keys are ready.
 12. [ ] End the call.
 13. [ ] Confirm the website moves through ended and analyzing states.
 14. [ ] Confirm the result shows issue, urgency, lead status, appointment interest, location, timing, summary, and transcript.
+15. [ ] Confirm a qualified call opens the secure details form automatically.
+16. [ ] Submit email, address, ZIP, date, and time and confirm the success state says no calendar event was created yet.
 
 ## Check private data
 
@@ -40,6 +42,7 @@ Do these steps only after all accounts and keys are ready.
 - [ ] Supabase contains the transcript.
 - [ ] Supabase contains the recording URL privately.
 - [ ] Supabase contains the structured post-call analysis.
+- [ ] Supabase contains one private `booking_detail_submissions` row after form submission.
 - [ ] The public API response does not contain a phone number.
 - [ ] The public API response does not contain a recording URL.
 - [ ] The public API response does not contain a Retell ID, database ID, IP, or hash.
@@ -55,6 +58,8 @@ Do these steps only after all accounts and keys are ready.
 - [ ] Send the same valid webhook twice and confirm only one state update is applied.
 - [ ] Confirm a no-answer or declined call shows a clear failed state.
 - [ ] Confirm a delayed analysis remains in the analyzing state and does not show guessed results.
+- [ ] Confirm a second details submission for the same call is rejected.
+- [ ] Confirm a changed or expired form token is rejected.
 
 ## Acceptance
 

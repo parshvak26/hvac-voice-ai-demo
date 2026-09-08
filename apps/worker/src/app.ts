@@ -1,6 +1,7 @@
 import type {
   CreateDemoCallResponse,
   DemoResultResponse,
+  SubmitBookingDetailsResponse,
 } from "@hvac-demo/shared";
 import { addCorsHeaders, getAllowedOrigin, preflightResponse } from "./http/cors";
 import { errorResponse, jsonResponse } from "./http/responses";
@@ -36,6 +37,11 @@ import type { DemoRequestRepository } from "./repositories/demo-request-reposito
 import { PersistenceError } from "./repositories/supabase-demo-request-repository";
 import { DemoCallService, RateLimitError } from "./services/demo-call-service";
 import {
+  canCollectBookingDetails,
+  createBookingFormOffer,
+} from "./services/booking-form-service";
+import { BookingTokenService } from "./security/booking-token";
+import {
   createIdentifierHasher,
   HashConfigurationError,
   type IdentifierHasher,
@@ -45,6 +51,7 @@ import {
   isValidPublicToken,
   validateCreateDemoCallBody,
 } from "./validation/demo-call";
+import { validateBookingDetailsBody } from "./validation/booking-details";
 import {
   fingerprintWebhook,
   mapRetellWebhook,
@@ -61,6 +68,7 @@ export interface WorkerAppOptions {
   retellWebhookVerifier?: RetellWebhookVerifier;
   expectedRetellAgentId?: string;
   identifierHasher?: IdentifierHasher;
+  bookingTokenService?: BookingTokenService;
   now?: () => number;
 }
 
@@ -89,6 +97,11 @@ export function createWorkerApp(options: WorkerAppOptions = {}) {
   const memoryRepository = new InMemoryDemoRequestRepository();
   const getRepository = (env: WorkerEnv) =>
     options.repository ?? createConfiguredRepository(env, memoryRepository);
+  const getBookingTokenService = (env: WorkerEnv) => {
+    if (options.bookingTokenService) return options.bookingTokenService;
+    if (!env.HASH_SALT) throw new HashConfigurationError();
+    return new BookingTokenService(env.HASH_SALT, options.now);
+  };
 
   return {
     async fetch(request: Request, env: WorkerEnv): Promise<Response> {
@@ -491,6 +504,162 @@ export function createWorkerApp(options: WorkerAppOptions = {}) {
         }
       }
 
+      if (url.pathname === "/api/booking-details") {
+        if (request.method !== "POST") {
+          const response = errorResponse(
+            405,
+            "method_not_allowed",
+            "Use POST for this route.",
+          );
+          response.headers.set("Allow", "POST, OPTIONS");
+          return withCors(response);
+        }
+        if (env.DEMO_DETAILS_FORM_ENABLED !== "true") {
+          return withCors(
+            errorResponse(
+              404,
+              "booking_unavailable",
+              "The details form is not available for this demo.",
+            ),
+          );
+        }
+        if (!(request.headers.get("Content-Type") ?? "").toLowerCase().includes("application/json")) {
+          return withCors(
+            errorResponse(
+              415,
+              "invalid_content_type",
+              "Send the request as application/json.",
+            ),
+          );
+        }
+        const contentLength = Number(request.headers.get("Content-Length") ?? 0);
+        if (contentLength > maximumPayloadBytes) {
+          return withCors(
+            errorResponse(413, "payload_too_large", "The form submission is too large."),
+          );
+        }
+
+        let body: unknown;
+        try {
+          const rawBody = await request.text();
+          if (new TextEncoder().encode(rawBody).byteLength > maximumPayloadBytes) {
+            return withCors(
+              errorResponse(413, "payload_too_large", "The form submission is too large."),
+            );
+          }
+          body = JSON.parse(rawBody) as unknown;
+        } catch {
+          return withCors(errorResponse(400, "invalid_request", "Send valid JSON."));
+        }
+        const now = (options.now ?? Date.now)();
+        const validation = validateBookingDetailsBody(body, now);
+        if (!validation.ok) {
+          return withCors(errorResponse(400, validation.code, validation.message));
+        }
+
+        try {
+          const tokenValidation = await getBookingTokenService(env).validate(
+            validation.value.token,
+          );
+          if (!tokenValidation.ok) {
+            const expired = tokenValidation.reason === "expired";
+            return withCors(
+              errorResponse(
+                expired ? 410 : 401,
+                expired ? "booking_token_expired" : "booking_token_invalid",
+                expired
+                  ? "This form has expired. Please run the demo again."
+                  : "This form link is invalid.",
+              ),
+            );
+          }
+
+          const repository = getRepository(env);
+          const aggregate = await repository.findByPublicToken(
+            tokenValidation.publicToken,
+          );
+          if (!canCollectBookingDetails(aggregate)) {
+            return withCors(
+              errorResponse(
+                409,
+                "booking_unavailable",
+                "Details cannot be collected for this call.",
+              ),
+            );
+          }
+          const submissionResult = await repository.submitBookingDetails({
+            demoRequestId: aggregate.request.id,
+            email: validation.value.email,
+            addressLine1: validation.value.addressLine1,
+            city: validation.value.city,
+            region: validation.value.region,
+            postalCode: validation.value.postalCode,
+            requestedDate: validation.value.requestedDate,
+            requestedTime: validation.value.requestedTime,
+            timezone: "America/Chicago",
+            tokenExpiresAt: tokenValidation.expiresAt,
+            submittedAt: new Date(now).toISOString(),
+          });
+          if (submissionResult === "already_submitted") {
+            return withCors(
+              errorResponse(
+                409,
+                "booking_already_submitted",
+                "Details were already submitted for this call.",
+              ),
+            );
+          }
+          if (submissionResult !== "created") {
+            return withCors(
+              errorResponse(
+                409,
+                "booking_unavailable",
+                "Details cannot be collected for this call.",
+              ),
+            );
+          }
+          writeWorkerLog(env, "info", "booking_details_received", {
+            requestId: tokenValidation.publicToken,
+            status: "details_received",
+          });
+          const response: SubmitBookingDetailsResponse = { status: "details_received" };
+          return withCors(jsonResponse(response, 201));
+        } catch (error) {
+          if (
+            error instanceof HashConfigurationError ||
+            error instanceof PersistenceConfigurationError
+          ) {
+            writeWorkerLog(env, "error", "booking_details_failed", {
+              errorCategory: "configuration",
+              httpStatus: 503,
+            });
+          } else if (error instanceof PersistenceError) {
+            writeWorkerLog(env, "error", "booking_details_failed", {
+              errorCategory: "persistence",
+              httpStatus: 503,
+              result: error.code
+                ? `${error.operation}:${error.code}`
+                : error.operation,
+            });
+          } else {
+            writeWorkerLog(env, "error", "booking_details_failed", {
+              errorCategory: "internal",
+              httpStatus: 500,
+            });
+            return withCors(
+              errorResponse(500, "internal_error", "The details could not be saved."),
+            );
+          }
+          return withCors(
+            errorResponse(
+              503,
+              "service_unavailable",
+              "The details form is temporarily unavailable.",
+            ),
+          );
+        }
+      }
+
       const resultRouteMatch = url.pathname.match(
         /^\/api\/demo-result\/([^/]+)$/,
       );
@@ -522,8 +691,25 @@ export function createWorkerApp(options: WorkerAppOptions = {}) {
             env.RETELL_MODE === "mock",
           );
           result = await service.getPublicResult(publicToken);
+          if (
+            result?.status === "complete" &&
+            env.DEMO_DETAILS_FORM_ENABLED === "true"
+          ) {
+            const aggregate = await repository.findByPublicToken(publicToken);
+            const bookingForm = aggregate
+              ? await createBookingFormOffer(
+                  aggregate,
+                  getBookingTokenService(env),
+                  (options.now ?? Date.now)(),
+                )
+              : null;
+            if (bookingForm) result = { ...result, bookingForm };
+          }
         } catch (error) {
-          if (error instanceof PersistenceConfigurationError) {
+          if (
+            error instanceof PersistenceConfigurationError ||
+            error instanceof HashConfigurationError
+          ) {
             writeWorkerLog(env, "error", "demo_result_failed", {
               requestId: publicToken,
               errorCategory: "persistence_configuration",

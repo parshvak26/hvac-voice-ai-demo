@@ -138,7 +138,7 @@ export default function App() {
           </ol>
         </section>
 
-        <StatusPanel state={demoState} onReset={handleReset} />
+        <StatusPanel state={demoState} client={client} onReset={handleReset} />
 
         <section className="prompts-section" aria-labelledby="prompts-title">
           <div className="prompts-heading">

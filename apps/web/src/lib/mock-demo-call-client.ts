@@ -4,6 +4,9 @@ import type {
   DemoCallResult,
   DemoCallStatus,
 } from "../types/demo-call";
+import type {
+  SubmitBookingDetailsResponse,
+} from "@hvac-demo/shared";
 
 const wait = (milliseconds: number, signal?: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
@@ -19,7 +22,23 @@ const wait = (milliseconds: number, signal?: AbortSignal) =>
     );
   });
 
-const demoResult: DemoCallResult = {
+function tomorrowInAustin(): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((part) => part.type === type)?.value);
+  return new Date(Date.UTC(value("year"), value("month") - 1, value("day") + 1))
+    .toISOString()
+    .slice(0, 10);
+}
+
+function createDemoResult(): DemoCallResult {
+  const suggestedDate = tomorrowInAustin();
+  return {
   durationSeconds: 78,
   analysis: {
     issueCategory: "Demo sample: AC not cooling",
@@ -29,7 +48,7 @@ const demoResult: DemoCallResult = {
     humanRequested: false,
     serviceLocation: "Austin, TX",
     preferredTiming: "Tomorrow afternoon",
-    preferredDate: "2026-09-09",
+    preferredDate: suggestedDate,
     preferredTime: "15:00",
     preferredTimeConfidence: "high",
     bookingEligible: true,
@@ -54,7 +73,15 @@ const demoResult: DemoCallResult = {
       text: "No, nothing like that. I would like someone to look at it tomorrow.",
     },
   ],
-};
+  bookingForm: {
+    token: "local-mock-booking-token",
+    expiresAt: new Date(Date.now() + 60 * 60_000).toISOString(),
+    timezone: "America/Chicago",
+    suggestedDate,
+    suggestedTime: "15:00",
+  },
+  };
+}
 
 export class MockDemoCallClient implements DemoCallClient {
   readonly mode = "local_mock" as const;
@@ -92,6 +119,11 @@ export class MockDemoCallClient implements DemoCallClient {
     onStatusChange("analysis_pending");
     await wait(1050, signal);
 
-    return demoResult;
+    return createDemoResult();
+  }
+
+  async submitBookingDetails(): Promise<SubmitBookingDetailsResponse> {
+    await wait(450);
+    return { status: "details_received" };
   }
 }

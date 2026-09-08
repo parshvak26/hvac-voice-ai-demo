@@ -27,6 +27,8 @@ The migrations are:
 
 `supabase/migrations/20260902000200_add_retell_webhook_events.sql`
 
+`supabase/migrations/20260908000100_add_booking_details.sql`
+
 Always check the dry-run output before applying the migration.
 
 ## 3. Create your local secret file
@@ -57,12 +59,14 @@ New mock demo requests will now be written to `demo_requests` and `calls`.
 
 ## Security choices
 
-- Row Level Security is enabled on all three tables.
+- Row Level Security is enabled on all private tables.
 - Browser roles have no table permissions or policies.
 - Only the server-side secret key can access these records.
 - Public API results never include phone numbers, database IDs, provider call IDs, recording URLs, or disconnection details.
 - Webhook event fingerprints are stored for safe replay protection. Raw webhook bodies are not stored.
 - Recording URLs are stored privately, but audio files are not copied into Supabase Storage.
+- Post-call email, address, ZIP, and requested time are stored in `booking_detail_submissions` and never returned by the public result API.
+- A database uniqueness rule permits only one details submission per demo call.
 
 ## Return to memory mode
 

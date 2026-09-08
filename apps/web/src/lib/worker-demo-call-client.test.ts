@@ -99,6 +99,13 @@ describe("WorkerDemoCallClient", () => {
     let call = 0;
     const scheduledResult = {
       ...completeResult,
+      bookingForm: {
+        token: `v1.${requestId}.1800003600.${"a".repeat(43)}`,
+        expiresAt: "2027-01-15T09:00:00.000Z",
+        timezone: "America/Chicago",
+        suggestedDate: "2027-01-16",
+        suggestedTime: "17:00",
+      },
       analysis: {
         ...completeResult.analysis,
         preferredDate: "2027-01-16",
@@ -125,7 +132,57 @@ describe("WorkerDemoCallClient", () => {
           preferredTimeConfidence: "high",
           bookingEligible: true,
         },
+        bookingForm: {
+          suggestedDate: "2027-01-16",
+          suggestedTime: "17:00",
+        },
       });
+  });
+
+  it("parses the secure form offer and submits only the requested details", async () => {
+    let postedBody = "";
+    const client = new WorkerDemoCallClient("https://api.example.test", {
+      request: async (_input, init) => {
+        postedBody = String(init?.body);
+        return new Response(JSON.stringify({ status: "details_received" }), {
+          status: 201,
+        });
+      },
+    });
+    const details = {
+      token: `v1.${requestId}.1800003600.${"a".repeat(43)}`,
+      email: "customer@example.com",
+      addressLine1: "100 Congress Avenue",
+      city: "Austin",
+      region: "TX",
+      postalCode: "78701",
+      requestedDate: "2027-01-16",
+      requestedTime: "15:00",
+    };
+
+    await expect(client.submitBookingDetails(details)).resolves.toEqual({
+      status: "details_received",
+    });
+    expect(JSON.parse(postedBody)).toEqual(details);
+  });
+
+  it("shows a useful message when the secure form expires", async () => {
+    const client = new WorkerDemoCallClient("https://api.example.test", {
+      request: async () => new Response(JSON.stringify({
+        error: { code: "booking_token_expired", message: "hidden server text" },
+      }), { status: 410 }),
+    });
+
+    await expect(client.submitBookingDetails({
+      token: "expired",
+      email: "customer@example.com",
+      addressLine1: "100 Congress Avenue",
+      city: "Austin",
+      region: "TX",
+      postalCode: "78701",
+      requestedDate: "2027-01-16",
+      requestedTime: "15:00",
+    })).rejects.toThrow("form has expired");
   });
 
   it("maps API rate limits to the form's rate-limited state", async () => {

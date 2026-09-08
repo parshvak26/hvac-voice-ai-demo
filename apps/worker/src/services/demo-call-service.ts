@@ -37,6 +37,20 @@ const sampleTranscript = [
   "Demo caller: No. I would like someone to look at it tomorrow.",
 ].join("\n\n");
 
+function tomorrowInAustin(now: number): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(now));
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((part) => part.type === type)?.value);
+  return new Date(Date.UTC(value("year"), value("month") - 1, value("day") + 1))
+    .toISOString()
+    .slice(0, 10);
+}
+
 function getMockStatus(elapsedMilliseconds: number): PublicDemoStatus {
   if (elapsedMilliseconds < 1_000) return "requested";
   if (elapsedMilliseconds < 2_500) return "calling";
@@ -62,6 +76,10 @@ function withLifecycleData(
   now: number,
 ): DemoRequestAggregate {
   const call = aggregate.call;
+  const completedAnalysis = {
+    ...sampleAnalysis,
+    preferredDate: tomorrowInAustin(now),
+  };
   return {
     request: {
       ...aggregate.request,
@@ -85,8 +103,8 @@ function withLifecycleData(
           disconnectionReason:
             status === "complete" ? "mock_call_completed" : call.disconnectionReason,
           transcript: status === "complete" ? sampleTranscript : call.transcript,
-          analysis: status === "complete" ? sampleAnalysis : call.analysis,
-          summary: status === "complete" ? sampleAnalysis.summary : call.summary,
+          analysis: status === "complete" ? completedAnalysis : call.analysis,
+          summary: status === "complete" ? completedAnalysis.summary : call.summary,
           updatedAt: now,
         }
       : null,

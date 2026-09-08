@@ -2,8 +2,10 @@ import type { DemoCallAnalysis, PublicDemoStatus } from "@hvac-demo/shared";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   AbuseLimits,
+  BookingDetailsSubmissionResult,
   CallRecord,
   CreateCallRecord,
+  CreateBookingDetailsRecord,
   CreateDemoRequestRecord,
   DemoRequestAggregate,
   DemoRequestRecord,
@@ -295,5 +297,31 @@ export class SupabaseDemoRequestRepository implements DemoRequestRepository {
       throw new PersistenceError("map_retell_webhook_result");
     }
     return result as RetellWebhookApplyResult;
+  }
+
+  async submitBookingDetails(
+    record: CreateBookingDetailsRecord,
+  ): Promise<BookingDetailsSubmissionResult> {
+    const { data, error } = await this.client.rpc("submit_booking_details", {
+      p_demo_request_id: record.demoRequestId,
+      p_email: record.email,
+      p_address_line1: record.addressLine1,
+      p_city: record.city,
+      p_region: record.region,
+      p_postal_code: record.postalCode,
+      p_requested_date: record.requestedDate,
+      p_requested_time: record.requestedTime,
+      p_timezone: record.timezone,
+      p_token_expires_at: record.tokenExpiresAt,
+      p_submitted_at: record.submittedAt,
+    });
+    if (error || !Array.isArray(data) || data.length !== 1) {
+      throw new PersistenceError("submit_booking_details", error?.code);
+    }
+    const result = (data[0] as { result?: unknown }).result;
+    if (!new Set(["created", "already_submitted", "unavailable"]).has(String(result))) {
+      throw new PersistenceError("map_booking_details_result");
+    }
+    return result as BookingDetailsSubmissionResult;
   }
 }

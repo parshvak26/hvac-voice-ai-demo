@@ -1,11 +1,14 @@
 import type {
   ApiErrorResponse,
+  BookingFormOffer,
   CreateDemoCallRequest,
   CreateDemoCallResponse,
   DemoCallAnalysis,
   DemoResultResponse,
   PublicDemoStatus,
   PublicTranscriptLine,
+  SubmitBookingDetailsRequest,
+  SubmitBookingDetailsResponse,
 } from "@hvac-demo/shared";
 import type {
   DemoCallClient,
@@ -128,6 +131,18 @@ function readApiError(value: unknown, status: number, headers?: Headers): Error 
   if (code === "consent_required") {
     return new Error("Confirm both consent choices before continuing.");
   }
+  if (code === "booking_token_expired") {
+    return new Error("This form has expired. Please run the demo again.");
+  }
+  if (code === "booking_token_invalid") {
+    return new Error("This form link is invalid. Please run the demo again.");
+  }
+  if (code === "booking_already_submitted") {
+    return new Error("Details were already submitted for this call.");
+  }
+  if (code === "booking_unavailable") {
+    return new Error("The details form is not available for this call.");
+  }
   if (code === "request_not_found" || status === 404) {
     return new Error("This demo result is no longer available. Please start again.");
   }
@@ -232,6 +247,27 @@ function parseTranscript(value: unknown): PublicTranscriptLine[] | null {
   return lines;
 }
 
+function parseBookingForm(value: unknown): BookingFormOffer | null {
+  if (!isRecord(value)) return null;
+  if (
+    typeof value.token !== "string" ||
+    !value.token ||
+    value.token.length > 512 ||
+    typeof value.expiresAt !== "string" ||
+    !Number.isFinite(Date.parse(value.expiresAt)) ||
+    value.timezone !== "America/Chicago" ||
+    !(value.suggestedDate === null || (
+      typeof value.suggestedDate === "string" && isValidIsoDate(value.suggestedDate)
+    )) ||
+    !(value.suggestedTime === null || (
+      typeof value.suggestedTime === "string" && twentyFourHourTimePattern.test(value.suggestedTime)
+    ))
+  ) {
+    return null;
+  }
+  return value as unknown as BookingFormOffer;
+}
+
 function parsePublicResult(value: unknown): DemoResultResponse | null {
   if (!isRecord(value) || typeof value.status !== "string" || !publicStatuses.has(value.status as PublicDemoStatus)) {
     return null;
@@ -240,9 +276,13 @@ function parsePublicResult(value: unknown): DemoResultResponse | null {
   if (status !== "complete") return { status };
   const analysis = parseAnalysis(value.analysis);
   const transcript = parseTranscript(value.transcript);
+  const bookingForm = value.bookingForm === undefined
+    ? undefined
+    : parseBookingForm(value.bookingForm);
   if (
     !analysis ||
     !transcript ||
+    (value.bookingForm !== undefined && !bookingForm) ||
     (value.durationSeconds !== undefined && (
       typeof value.durationSeconds !== "number" ||
       !Number.isFinite(value.durationSeconds) ||
@@ -257,6 +297,7 @@ function parsePublicResult(value: unknown): DemoResultResponse | null {
     analysis,
     transcript,
     durationSeconds: value.durationSeconds as number | undefined,
+    bookingForm: bookingForm ?? undefined,
   };
 }
 
@@ -361,10 +402,35 @@ export class WorkerDemoCallClient implements DemoCallClient {
           durationSeconds: result.durationSeconds,
           analysis: result.analysis!,
           transcript: result.transcript!,
+          bookingForm: result.bookingForm,
         };
       }
     }
     throw new Error("The call result is taking longer than expected. Please try again later.");
+  }
+
+  async submitBookingDetails(
+    body: SubmitBookingDetailsRequest,
+  ): Promise<SubmitBookingDetailsResponse> {
+    let response: Response;
+    try {
+      const request = this.request;
+      response = await request(`${this.apiOrigin}/api/booking-details`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    } catch {
+      throw new Error("The demo service could not be reached. Please try again.");
+    }
+    const responseBody = await readJson(response);
+    if (!response.ok) {
+      throw readApiError(responseBody, response.status, response.headers);
+    }
+    if (!isRecord(responseBody) || responseBody.status !== "details_received") {
+      throw new Error("The demo service returned an invalid response.");
+    }
+    return { status: "details_received" };
   }
 }
 
@@ -372,6 +438,10 @@ export class UnconfiguredDemoCallClient implements DemoCallClient {
   readonly mode = "unconfigured" as const;
 
   async startDemoCall(): Promise<DemoCallResult> {
+    throw new Error("Live calling is not configured yet.");
+  }
+
+  async submitBookingDetails(): Promise<SubmitBookingDetailsResponse> {
     throw new Error("Live calling is not configured yet.");
   }
 }

@@ -866,6 +866,131 @@ select:disabled {
   font-size: 0.78rem;
 }
 
+.booking-details {
+  position: relative;
+  z-index: 1;
+  margin-top: 30px;
+  padding: clamp(22px, 4vw, 34px);
+  border: 1px solid #cddbd3;
+  border-radius: 18px;
+  background: #f3f7f3;
+  scroll-margin-top: 24px;
+}
+
+.booking-details__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.booking-details__heading h3 {
+  margin: 0;
+  color: var(--ink);
+  font-family: "Manrope", sans-serif;
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  letter-spacing: -0.04em;
+}
+
+.booking-details__heading > span {
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: var(--mint);
+  color: #385851;
+  font-size: 0.67rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.booking-details__intro {
+  max-width: 760px;
+  margin: 18px 0 24px;
+  color: #52696a;
+  line-height: 1.6;
+}
+
+.booking-form__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.booking-form__grid label {
+  display: grid;
+  gap: 8px;
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.booking-form__grid input {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1.5px solid #c7d1cb;
+  border-radius: 9px;
+  background: #fff;
+  color: var(--ink-deep);
+}
+
+.booking-form__grid input:focus {
+  border-color: var(--orange);
+}
+
+.booking-timezone,
+.booking-privacy {
+  color: #687d7d;
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.booking-timezone {
+  margin: 14px 0 20px;
+}
+
+.booking-submit {
+  width: min(100%, 320px);
+}
+
+.booking-privacy {
+  margin: 10px 0 0;
+}
+
+.booking-success {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-top: 22px;
+  padding: 18px;
+  border-radius: 12px;
+  background: #dcebe1;
+  color: #31574c;
+}
+
+.booking-success > span {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #477768;
+  color: #fff;
+  font-weight: 800;
+  place-items: center;
+}
+
+.booking-success strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.booking-success p {
+  margin: 0;
+  line-height: 1.55;
+}
+
 .text-button {
   position: relative;
   z-index: 1;
@@ -1102,6 +1227,10 @@ footer p {
 
   .result-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .booking-form__grid {
+    grid-template-columns: 1fr;
   }
 
   .result-item {

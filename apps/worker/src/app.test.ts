@@ -130,6 +130,85 @@ describe("worker routes", () => {
     expect(serialized).not.toContain("recording");
   });
 
+  it("offers and accepts the secure details form once for a completed call", async () => {
+    let now = Date.parse("2026-09-08T18:00:00.000Z");
+    const app = createWorkerApp({ now: () => now });
+    const formEnv = {
+      ...env,
+      DEMO_DETAILS_FORM_ENABLED: "true" as const,
+      HASH_SALT: "test-secret-with-enough-entropy-for-booking",
+    };
+    const createResponse = await app.fetch(
+      createRequest({
+        phoneNumber: "5125551234",
+        consentToAiCall: true,
+        consentToRecording: true,
+      }),
+      formEnv,
+    );
+    const created = await createResponse.json<CreateDemoCallResponse>();
+    now += 8_000;
+    const resultResponse = await app.fetch(
+      new Request(`http://localhost:8787/api/demo-result/${created.requestId}`, {
+        headers: { Origin: "http://localhost:5173" },
+      }),
+      formEnv,
+    );
+    const result = await resultResponse.json<DemoResultResponse>();
+    expect(result.bookingForm?.token).toMatch(/^v1\./);
+    expect(JSON.stringify(result)).not.toContain("customer@example.com");
+
+    const detailsRequest = () => new Request(
+      "http://localhost:8787/api/booking-details",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Origin: "http://localhost:5173",
+        },
+        body: JSON.stringify({
+          token: result.bookingForm?.token,
+          email: "customer@example.com",
+          addressLine1: "100 Congress Avenue",
+          city: "Austin",
+          region: "TX",
+          postalCode: "78701",
+          requestedDate: "2026-09-09",
+          requestedTime: "15:00",
+        }),
+      },
+    );
+    const submitted = await app.fetch(detailsRequest(), formEnv);
+    expect(submitted.status).toBe(201);
+    await expect(submitted.json()).resolves.toEqual({ status: "details_received" });
+
+    const duplicate = await app.fetch(detailsRequest(), formEnv);
+    const duplicateBody = await duplicate.json<ApiErrorResponse>();
+    expect(duplicate.status).toBe(409);
+    expect(duplicateBody.error.code).toBe("booking_already_submitted");
+  });
+
+  it("does not expose the form while the feature is disabled", async () => {
+    let now = Date.parse("2026-09-08T18:00:00.000Z");
+    const app = createWorkerApp({ now: () => now });
+    const createResponse = await app.fetch(
+      createRequest({
+        phoneNumber: "5125551234",
+        consentToAiCall: true,
+        consentToRecording: true,
+      }),
+      env,
+    );
+    const created = await createResponse.json<CreateDemoCallResponse>();
+    now += 8_000;
+    const response = await app.fetch(
+      new Request(`http://localhost:8787/api/demo-result/${created.requestId}`),
+      env,
+    );
+    const result = await response.json<DemoResultResponse>();
+    expect(result.bookingForm).toBeUndefined();
+  });
+
   it("rejects a browser origin that is not configured", async () => {
     const app = createWorkerApp();
     const response = await app.fetch(

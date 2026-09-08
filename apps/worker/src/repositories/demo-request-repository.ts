@@ -1,6 +1,8 @@
 import type {
   AbuseLimits,
+  BookingDetailsSubmissionResult,
   CreateCallRecord,
+  CreateBookingDetailsRecord,
   CreateDemoRequestRecord,
   DemoRequestAggregate,
   DemoRequestReservation,
@@ -28,4 +30,7 @@ export interface DemoRequestRepository {
   applyRetellWebhook(
     update: RetellWebhookUpdate,
   ): Promise<RetellWebhookApplyResult>;
+  submitBookingDetails(
+    record: CreateBookingDetailsRecord,
+  ): Promise<BookingDetailsSubmissionResult>;
 }

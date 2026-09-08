@@ -1,8 +1,10 @@
 import type { PublicDemoStatus } from "@hvac-demo/shared";
 import type {
   AbuseLimits,
+  BookingDetailsSubmissionResult,
   CallRecord,
   CreateCallRecord,
+  CreateBookingDetailsRecord,
   CreateDemoRequestRecord,
   DemoRequestAggregate,
   DemoRequestRecord,
@@ -18,6 +20,7 @@ export class InMemoryDemoRequestRepository implements DemoRequestRepository {
   private readonly requests = new Map<string, DemoRequestRecord>();
   private readonly calls = new Map<string, CallRecord>();
   private readonly webhookFingerprints = new Set<string>();
+  private readonly bookingDetails = new Map<string, CreateBookingDetailsRecord>();
 
   async reserveDemoRequest(
     record: CreateDemoRequestRecord,
@@ -243,5 +246,22 @@ export class InMemoryDemoRequestRepository implements DemoRequestRepository {
       updatedAt: update.receivedAt,
     });
     return "applied";
+  }
+
+  async submitBookingDetails(
+    record: CreateBookingDetailsRecord,
+  ): Promise<BookingDetailsSubmissionResult> {
+    const request = [...this.requests.values()].find(
+      (candidate) => candidate.id === record.demoRequestId,
+    );
+    const call = this.calls.get(record.demoRequestId);
+    if (!request || request.status !== "complete" || call?.status !== "complete") {
+      return "unavailable";
+    }
+    if (this.bookingDetails.has(record.demoRequestId)) {
+      return "already_submitted";
+    }
+    this.bookingDetails.set(record.demoRequestId, { ...record });
+    return "created";
   }
 }

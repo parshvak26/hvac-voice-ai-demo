@@ -1,6 +1,9 @@
 import type {
+  BookingFormOffer,
   DemoCallAnalysis,
   PublicTranscriptLine,
+  SubmitBookingDetailsRequest,
+  SubmitBookingDetailsResponse,
 } from "@hvac-demo/shared";
 
 export type DemoCallStatus =
@@ -33,6 +36,7 @@ export interface DemoCallResult {
   durationSeconds?: number;
   analysis: DemoCallAnalysis;
   transcript: PublicTranscriptLine[];
+  bookingForm?: BookingFormOffer;
 }
 
 export interface DemoCallClient {
@@ -42,4 +46,7 @@ export interface DemoCallClient {
     onStatusChange: (status: DemoCallStatus) => void,
     signal?: AbortSignal,
   ): Promise<DemoCallResult>;
+  submitBookingDetails(
+    request: SubmitBookingDetailsRequest,
+  ): Promise<SubmitBookingDetailsResponse>;
 }
