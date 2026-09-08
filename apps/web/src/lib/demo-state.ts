@@ -18,7 +18,7 @@ export const initialDemoState: DemoState = {
 };
 
 const allowedTransitions: Record<DemoCallStatus, DemoCallStatus[]> = {
-  idle: ["invalid_number", "consent_missing", "verification_pending"],
+  idle: ["invalid_number", "consent_missing", "verification_pending", "call_requested"],
   invalid_number: ["invalid_number", "consent_missing", "verification_pending", "idle"],
   consent_missing: ["invalid_number", "consent_missing", "verification_pending", "idle"],
   verification_pending: ["submitting", "failed", "idle"],

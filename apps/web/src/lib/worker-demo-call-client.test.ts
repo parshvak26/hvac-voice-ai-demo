@@ -30,6 +30,15 @@ const completeResult = {
   ],
 };
 
+function createStorage() {
+  const values = new Map<string, string>();
+  return {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => { values.set(key, value); },
+    removeItem: (key: string) => { values.delete(key); },
+  };
+}
+
 describe("WorkerDemoCallClient", () => {
   it("calls browser fetch without binding it to the client instance", async () => {
     let call = 0;
@@ -93,6 +102,62 @@ describe("WorkerDemoCallClient", () => {
       "analysis_pending",
     ]);
     expect(result.analysis.issueCategory).toBe("AC not cooling");
+  });
+
+  it("saves an accepted call and restores its completed result after a reload", async () => {
+    const storage = createStorage();
+    let firstClientCall = 0;
+    const firstClient = new WorkerDemoCallClient("https://api.example.test", {
+      storage,
+      request: async () => {
+        firstClientCall += 1;
+        return firstClientCall === 1
+          ? new Response(JSON.stringify({ status: "call_requested", requestId }), { status: 202 })
+          : new Response(JSON.stringify({ status: "requested" }), { status: 200 });
+      },
+      sleep: async () => { throw new DOMException("Reloaded", "AbortError"); },
+      now: () => 1_000,
+    });
+
+    await expect(firstClient.startDemoCall(demoRequest, () => undefined))
+      .rejects.toMatchObject({ name: "AbortError" });
+
+    const statuses: DemoCallStatus[] = [];
+    const reloadedClient = new WorkerDemoCallClient("https://api.example.test", {
+      storage,
+      request: async (_input, init) => {
+        expect(init?.method).toBeUndefined();
+        return new Response(JSON.stringify(completeResult), { status: 200 });
+      },
+      sleep: async () => undefined,
+      now: () => 1_001,
+    });
+
+    await expect(reloadedClient.resumeDemoCall((status) => statuses.push(status)))
+      .resolves.toMatchObject({ analysis: completeResult.analysis });
+    expect(statuses).toEqual([
+      "call_requested",
+      "calling",
+      "connected",
+      "call_ended",
+      "analysis_pending",
+    ]);
+  });
+
+  it("ignores expired or malformed saved call state", async () => {
+    const storage = createStorage();
+    storage.setItem("hvac-demo-active-request-v1", JSON.stringify({
+      requestId,
+      savedAt: 1,
+    }));
+    const client = new WorkerDemoCallClient("https://api.example.test", {
+      storage,
+      request: async () => { throw new Error("should not fetch"); },
+      now: () => 3 * 60 * 60_000,
+    });
+
+    await expect(client.resumeDemoCall(() => undefined)).resolves.toBeNull();
+    expect(storage.getItem("hvac-demo-active-request-v1")).toBeNull();
   });
 
   it("accepts validated scheduling analysis from the Worker", async () => {

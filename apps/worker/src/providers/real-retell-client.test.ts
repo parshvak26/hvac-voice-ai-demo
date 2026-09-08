@@ -24,6 +24,7 @@ function createClient(request: typeof fetch) {
     serviceArea: "Austin, Texas",
     timezone: "America/Chicago",
     bookingEnabled: false,
+    detailsFormEnabled: true,
     request,
   });
 }
@@ -68,6 +69,7 @@ describe("RealRetellClient", () => {
           demo_service_area: "Austin, Texas",
           demo_timezone: "America/Chicago",
           demo_booking_enabled: "false",
+          demo_details_form_enabled: "true",
           fictional_demo: "true",
         },
       });
@@ -127,6 +129,7 @@ describe("RealRetellClient", () => {
           serviceArea: "Austin, Texas",
           timezone: "America/Chicago",
           bookingEnabled: false,
+          detailsFormEnabled: false,
         }),
     ).toThrow(RetellConfigurationError);
   });

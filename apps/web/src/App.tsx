@@ -1,4 +1,4 @@
-import { useCallback, useReducer } from "react";
+import { useCallback, useEffect, useReducer } from "react";
 import { BrandMark } from "./components/BrandMark";
 import { DemoCallForm } from "./components/DemoCallForm";
 import { StatusPanel } from "./components/StatusPanel";
@@ -49,7 +49,25 @@ export default function App() {
     dispatch({ type: "complete", result });
   }, []);
 
-  const handleReset = useCallback(() => dispatch({ type: "reset" }), []);
+  const handleReset = useCallback(() => {
+    client.clearSavedDemoCall();
+    dispatch({ type: "reset" });
+  }, [client]);
+
+  useEffect(() => {
+    if (client.mode !== "live") return;
+    const controller = new AbortController();
+    void client.resumeDemoCall(handleStatusChange, controller.signal)
+      .then((result) => {
+        if (result) handleComplete(result);
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        const message = error instanceof Error ? error.message : "The saved demo could not be restored.";
+        handleStatusChange("failed", message);
+      });
+    return () => controller.abort();
+  }, [client, handleComplete, handleStatusChange]);
 
   return (
     <div className="site-shell">

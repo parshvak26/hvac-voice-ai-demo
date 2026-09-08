@@ -49,4 +49,9 @@ export interface DemoCallClient {
   submitBookingDetails(
     request: SubmitBookingDetailsRequest,
   ): Promise<SubmitBookingDetailsResponse>;
+  resumeDemoCall(
+    onStatusChange: (status: DemoCallStatus) => void,
+    signal?: AbortSignal,
+  ): Promise<DemoCallResult | null>;
+  clearSavedDemoCall(): void;
 }

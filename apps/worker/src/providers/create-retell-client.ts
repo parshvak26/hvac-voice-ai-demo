@@ -33,5 +33,6 @@ export function createConfiguredRetellClient(
     serviceArea: "Austin, Texas",
     timezone: env.DEMO_TIMEZONE ?? "America/Chicago",
     bookingEnabled: env.DEMO_BOOKING_ENABLED === "true",
+    detailsFormEnabled: env.DEMO_DETAILS_FORM_ENABLED === "true",
   });
 }

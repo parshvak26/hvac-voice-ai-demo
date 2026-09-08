@@ -22,6 +22,7 @@ interface RealRetellClientOptions {
   serviceArea: string;
   timezone: "America/Chicago";
   bookingEnabled: boolean;
+  detailsFormEnabled: boolean;
   request?: typeof fetch;
 }
 
@@ -110,6 +111,7 @@ export class RealRetellClient implements RetellClient {
             demo_service_area: this.options.serviceArea,
             demo_timezone: this.options.timezone,
             demo_booking_enabled: String(this.options.bookingEnabled),
+            demo_details_form_enabled: String(this.options.detailsFormEnabled),
             fictional_demo: "true",
           },
         }),

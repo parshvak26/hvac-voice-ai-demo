@@ -122,6 +122,12 @@ export class MockDemoCallClient implements DemoCallClient {
     return createDemoResult();
   }
 
+  async resumeDemoCall(): Promise<null> {
+    return null;
+  }
+
+  clearSavedDemoCall(): void {}
+
   async submitBookingDetails(): Promise<SubmitBookingDetailsResponse> {
     await wait(450);
     return { status: "details_received" };

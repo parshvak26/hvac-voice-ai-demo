@@ -23,6 +23,7 @@ interface WorkerDemoCallClientOptions {
   now?: () => number;
   pollIntervalMilliseconds?: number;
   pollTimeoutMilliseconds?: number;
+  storage?: Pick<Storage, "getItem" | "setItem" | "removeItem"> | null;
 }
 
 const publicStatuses = new Set<PublicDemoStatus>([
@@ -46,6 +47,8 @@ const lifecycle: DemoCallStatus[] = [
   "call_ended",
   "analysis_pending",
 ];
+const savedRequestStorageKey = "hvac-demo-active-request-v1";
+const savedRequestMaxAgeMilliseconds = 2 * 60 * 60_000;
 
 function defaultSleep(milliseconds: number, signal?: AbortSignal) {
   return new Promise<void>((resolve, reject) => {
@@ -321,6 +324,7 @@ export class WorkerDemoCallClient implements DemoCallClient {
   private readonly now: () => number;
   private readonly pollIntervalMilliseconds: number;
   private readonly pollTimeoutMilliseconds: number;
+  private readonly storage: WorkerDemoCallClientOptions["storage"];
 
   constructor(apiOrigin: string, options: WorkerDemoCallClientOptions = {}) {
     this.apiOrigin = normalizeApiOrigin(apiOrigin);
@@ -329,6 +333,109 @@ export class WorkerDemoCallClient implements DemoCallClient {
     this.now = options.now ?? Date.now;
     this.pollIntervalMilliseconds = options.pollIntervalMilliseconds ?? 2_000;
     this.pollTimeoutMilliseconds = options.pollTimeoutMilliseconds ?? 8 * 60_000;
+    this.storage = options.storage === undefined
+      ? (typeof window === "undefined" ? null : window.sessionStorage)
+      : options.storage;
+  }
+
+  private saveRequestId(requestId: string): void {
+    try {
+      this.storage?.setItem(savedRequestStorageKey, JSON.stringify({
+        requestId,
+        savedAt: this.now(),
+      }));
+    } catch {
+      // Storage can be unavailable in privacy-restricted browsers. The live call still works.
+    }
+  }
+
+  private readSavedRequestId(): string | null {
+    try {
+      const raw = this.storage?.getItem(savedRequestStorageKey);
+      if (!raw) return null;
+      const saved = JSON.parse(raw) as unknown;
+      if (
+        !isRecord(saved) ||
+        typeof saved.requestId !== "string" ||
+        !requestIdPattern.test(saved.requestId) ||
+        typeof saved.savedAt !== "number" ||
+        !Number.isFinite(saved.savedAt) ||
+        saved.savedAt > this.now() + 60_000 ||
+        this.now() - saved.savedAt > savedRequestMaxAgeMilliseconds
+      ) {
+        this.clearSavedDemoCall();
+        return null;
+      }
+      return saved.requestId;
+    } catch {
+      this.clearSavedDemoCall();
+      return null;
+    }
+  }
+
+  clearSavedDemoCall(): void {
+    try {
+      this.storage?.removeItem(savedRequestStorageKey);
+    } catch {
+      // Clearing an unavailable storage area is best effort.
+    }
+  }
+
+  private async pollForResult(
+    requestId: string,
+    onStatusChange: (status: DemoCallStatus) => void,
+    signal: AbortSignal | undefined,
+    waitBeforeFirstPoll: boolean,
+  ): Promise<DemoCallResult> {
+    let emittedStage = -1;
+    const emitThrough = (stage: number) => {
+      while (emittedStage < stage) {
+        emittedStage += 1;
+        onStatusChange(lifecycle[emittedStage]);
+      }
+    };
+    emitThrough(0);
+    const deadline = this.now() + this.pollTimeoutMilliseconds;
+    let shouldWait = waitBeforeFirstPoll;
+
+    while (this.now() < deadline) {
+      if (shouldWait) await this.sleep(this.pollIntervalMilliseconds, signal);
+      shouldWait = true;
+      let resultResponse: Response;
+      try {
+        const request = this.request;
+        resultResponse = await request(
+          `${this.apiOrigin}/api/demo-result/${encodeURIComponent(requestId)}`,
+          { headers: { Accept: "application/json" }, signal },
+        );
+      } catch (error) {
+        if (signal?.aborted) throw new DOMException("The demo was cancelled.", "AbortError");
+        throw error instanceof DOMException
+          ? error
+          : new Error("The demo service could not be reached. Please try again.");
+      }
+      const resultBody = await readJson(resultResponse);
+      if (!resultResponse.ok) {
+        if (resultResponse.status === 404) this.clearSavedDemoCall();
+        throw readApiError(resultBody, resultResponse.status, resultResponse.headers);
+      }
+      const result = parsePublicResult(resultBody);
+      if (!result) throw new Error("The demo service returned an invalid result.");
+      if (result.status === "failed") {
+        this.clearSavedDemoCall();
+        throw new Error("The call did not connect or ended before a result was ready.");
+      }
+      emitThrough(stageForStatus(result.status));
+      if (result.status === "complete") {
+        return {
+          durationSeconds: result.durationSeconds,
+          analysis: result.analysis!,
+          transcript: result.transcript!,
+          bookingForm: result.bookingForm,
+        };
+      }
+    }
+    throw new Error("The call result is taking longer than expected. Please try again later.");
   }
 
   async startDemoCall(
@@ -361,52 +468,17 @@ export class WorkerDemoCallClient implements DemoCallClient {
     if (!response.ok) throw readApiError(createBody, response.status, response.headers);
     const created = parseCreateResult(createBody);
     if (!created) throw new Error("The demo service returned an invalid response.");
+    this.saveRequestId(created.requestId);
+    return this.pollForResult(created.requestId, onStatusChange, signal, true);
+  }
 
-    let emittedStage = -1;
-    const emitThrough = (stage: number) => {
-      while (emittedStage < stage) {
-        emittedStage += 1;
-        onStatusChange(lifecycle[emittedStage]);
-      }
-    };
-    emitThrough(0);
-    const deadline = this.now() + this.pollTimeoutMilliseconds;
-
-    while (this.now() < deadline) {
-      await this.sleep(this.pollIntervalMilliseconds, signal);
-      let resultResponse: Response;
-      try {
-        const request = this.request;
-        resultResponse = await request(
-          `${this.apiOrigin}/api/demo-result/${encodeURIComponent(created.requestId)}`,
-          { headers: { Accept: "application/json" }, signal },
-        );
-      } catch (error) {
-        if (signal?.aborted) throw new DOMException("The demo was cancelled.", "AbortError");
-        throw error instanceof DOMException
-          ? error
-          : new Error("The demo service could not be reached. Please try again.");
-      }
-      const resultBody = await readJson(resultResponse);
-      if (!resultResponse.ok) {
-        throw readApiError(resultBody, resultResponse.status, resultResponse.headers);
-      }
-      const result = parsePublicResult(resultBody);
-      if (!result) throw new Error("The demo service returned an invalid result.");
-      if (result.status === "failed") {
-        throw new Error("The call did not connect or ended before a result was ready.");
-      }
-      emitThrough(stageForStatus(result.status));
-      if (result.status === "complete") {
-        return {
-          durationSeconds: result.durationSeconds,
-          analysis: result.analysis!,
-          transcript: result.transcript!,
-          bookingForm: result.bookingForm,
-        };
-      }
-    }
-    throw new Error("The call result is taking longer than expected. Please try again later.");
+  async resumeDemoCall(
+    onStatusChange: (status: DemoCallStatus) => void,
+    signal?: AbortSignal,
+  ): Promise<DemoCallResult | null> {
+    const requestId = this.readSavedRequestId();
+    if (!requestId) return null;
+    return this.pollForResult(requestId, onStatusChange, signal, false);
   }
 
   async submitBookingDetails(
@@ -444,4 +516,10 @@ export class UnconfiguredDemoCallClient implements DemoCallClient {
   async submitBookingDetails(): Promise<SubmitBookingDetailsResponse> {
     throw new Error("Live calling is not configured yet.");
   }
+
+  async resumeDemoCall(): Promise<null> {
+    return null;
+  }
+
+  clearSavedDemoCall(): void {}
 }

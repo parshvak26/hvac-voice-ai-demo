@@ -64,9 +64,13 @@ It also needs this non-secret mode setting:
 RETELL_MODE=retell
 DEMO_TIMEZONE=America/Chicago
 DEMO_BOOKING_ENABLED=false
+DEMO_DETAILS_FORM_ENABLED=false
 ```
 
-Keep `DEMO_BOOKING_ENABLED=false` until the webpage form and calendar endpoint are deployed and tested together.
+Set `DEMO_DETAILS_FORM_ENABLED=true` when the secure post-call details form is deployed. Keep
+`DEMO_BOOKING_ENABLED=false` until the real availability check and calendar endpoint are deployed
+and tested together. Sarah receives both flags separately so she never claims that a demo slot is
+available or booked while only the details form is enabled.
 
 Never place the API key in a `VITE_*` setting, the browser, source code, or chat.
 
