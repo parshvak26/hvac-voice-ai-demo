@@ -29,6 +29,7 @@ const busyStatuses: DemoCallStatus[] = [
 interface DemoCallFormProps {
   client: DemoCallClient;
   status: DemoCallStatus;
+  errorMessage: string | null;
   onStatusChange: (status: DemoCallStatus, errorMessage?: string) => void;
   onComplete: (result: DemoCallResult) => void;
   onReset: () => void;
@@ -37,6 +38,7 @@ interface DemoCallFormProps {
 export function DemoCallForm({
   client,
   status,
+  errorMessage,
   onStatusChange,
   onComplete,
   onReset,
@@ -407,6 +409,12 @@ export function DemoCallForm({
           "Call Me Now"
         )}
       </button>
+
+      {errorMessage && ["failed", "rate_limited"].includes(status) ? (
+        <p className="field-error" role="alert">
+          {errorMessage}
+        </p>
+      ) : null}
 
       <p className="dispatch-note">
         Fictional demo only. No real HVAC service or emergency help will be dispatched.

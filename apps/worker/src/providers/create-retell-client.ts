@@ -31,5 +31,7 @@ export function createConfiguredRetellClient(
     fromNumberE164: env.RETELL_FROM_NUMBER,
     companyName: env.DEMO_COMPANY_NAME,
     serviceArea: "Austin, Texas",
+    timezone: env.DEMO_TIMEZONE ?? "America/Chicago",
+    bookingEnabled: env.DEMO_BOOKING_ENABLED === "true",
   });
 }

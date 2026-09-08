@@ -22,6 +22,8 @@ function createClient(request: typeof fetch) {
     fromNumberE164: "+15125550000",
     companyName: "Austin Comfort HVAC",
     serviceArea: "Austin, Texas",
+    timezone: "America/Chicago",
+    bookingEnabled: false,
     request,
   });
 }
@@ -64,6 +66,8 @@ describe("RealRetellClient", () => {
           demo_company_name: "Austin Comfort HVAC",
           demo_agent_name: "Sarah",
           demo_service_area: "Austin, Texas",
+          demo_timezone: "America/Chicago",
+          demo_booking_enabled: "false",
           fictional_demo: "true",
         },
       });
@@ -121,6 +125,8 @@ describe("RealRetellClient", () => {
           fromNumberE164: "+442079460958",
           companyName: "Austin Comfort HVAC",
           serviceArea: "Austin, Texas",
+          timezone: "America/Chicago",
+          bookingEnabled: false,
         }),
     ).toThrow(RetellConfigurationError);
   });

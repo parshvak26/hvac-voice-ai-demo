@@ -29,6 +29,10 @@ const demoResult: DemoCallResult = {
     humanRequested: false,
     serviceLocation: "Austin, TX",
     preferredTiming: "Tomorrow afternoon",
+    preferredDate: "2026-09-09",
+    preferredTime: "15:00",
+    preferredTimeConfidence: "high",
+    bookingEligible: true,
     summary:
       "Sample result only: the demo caller described an AC system that is running but not cooling and showed interest in a future appointment.",
   },

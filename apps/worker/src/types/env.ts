@@ -1,6 +1,8 @@
 export interface WorkerEnv {
   ALLOWED_ORIGINS: string;
   DEMO_COMPANY_NAME: string;
+  DEMO_TIMEZONE?: "America/Chicago";
+  DEMO_BOOKING_ENABLED?: "true" | "false";
   RETELL_MODE: "mock" | "retell";
   RETELL_API_KEY?: string;
   RETELL_AGENT_ID?: string;

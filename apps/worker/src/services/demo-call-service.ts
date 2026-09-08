@@ -22,6 +22,10 @@ const sampleAnalysis: DemoCallAnalysis = {
   humanRequested: false,
   serviceLocation: "Austin, TX",
   preferredTiming: "Tomorrow afternoon",
+  preferredDate: "2026-09-09",
+  preferredTime: "15:00",
+  preferredTimeConfidence: "high",
+  bookingEligible: true,
   summary:
     "Mock sample only: the caller described an AC system that runs without cooling and showed interest in a future appointment.",
 };

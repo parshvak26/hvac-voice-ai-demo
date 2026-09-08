@@ -27,6 +27,10 @@ export interface DemoCallAnalysis {
   humanRequested: boolean;
   serviceLocation: string | null;
   preferredTiming: string | null;
+  preferredDate?: string | null;
+  preferredTime?: string | null;
+  preferredTimeConfidence?: "low" | "medium" | "high";
+  bookingEligible?: boolean;
   summary: string;
 }
 

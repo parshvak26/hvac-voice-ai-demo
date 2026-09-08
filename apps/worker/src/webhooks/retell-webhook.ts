@@ -28,6 +28,9 @@ const failedReasons = new Set([
   "voicemail_reached",
 ]);
 const urgencyValues = new Set(["low", "medium", "high", "emergency"]);
+const preferredTimeConfidenceValues = new Set(["low", "medium", "high"]);
+const isoDatePattern = /^\d{4}-(0[1-9]|1[0-2])-([0-2]\d|3[01])$/;
+const twentyFourHourTimePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type RecordValue = Record<string, unknown>;
@@ -51,6 +54,15 @@ function boundedString(value: unknown, maximum: number): string | undefined {
 function nullableString(value: unknown, maximum: number): string | null | undefined {
   if (value === null || value === undefined || value === "") return null;
   return boundedString(value, maximum);
+}
+
+function isValidIsoDate(value: string): boolean {
+  if (!isoDatePattern.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day;
 }
 
 function safeTimestamp(value: unknown): string | undefined {
@@ -112,7 +124,7 @@ function parseAnalysis(value: unknown): DemoCallAnalysis | undefined {
   ) {
     return undefined;
   }
-  return {
+  const analysis: DemoCallAnalysis = {
     issueCategory,
     urgency: urgency as DemoCallAnalysis["urgency"],
     leadQualified: value.lead_qualified,
@@ -121,6 +133,53 @@ function parseAnalysis(value: unknown): DemoCallAnalysis | undefined {
     serviceLocation,
     preferredTiming,
     summary,
+  };
+
+  const schedulingFields = [
+    "preferred_date",
+    "preferred_time",
+    "preferred_time_confidence",
+    "booking_eligible",
+  ];
+  const hasSchedulingAnalysis = schedulingFields.some((field) =>
+    Object.prototype.hasOwnProperty.call(value, field)
+  );
+  if (!hasSchedulingAnalysis) return analysis;
+
+  const preferredDate = nullableString(value.preferred_date, 10);
+  const preferredTime = nullableString(value.preferred_time, 5);
+  const preferredTimeConfidence = boundedString(
+    value.preferred_time_confidence,
+    6,
+  );
+  if (
+    preferredDate === undefined ||
+    (preferredDate !== null && !isValidIsoDate(preferredDate)) ||
+    preferredTime === undefined ||
+    (preferredTime !== null && !twentyFourHourTimePattern.test(preferredTime)) ||
+    !preferredTimeConfidence ||
+    !preferredTimeConfidenceValues.has(preferredTimeConfidence) ||
+    typeof value.booking_eligible !== "boolean"
+  ) {
+    return analysis;
+  }
+
+  const bookingEligible = value.booking_eligible &&
+    value.lead_qualified &&
+    value.appointment_interest &&
+    !value.human_requested &&
+    urgency !== "emergency" &&
+    preferredDate !== null &&
+    preferredTime !== null &&
+    preferredTimeConfidence === "high";
+
+  return {
+    ...analysis,
+    preferredDate,
+    preferredTime,
+    preferredTimeConfidence:
+      preferredTimeConfidence as DemoCallAnalysis["preferredTimeConfidence"],
+    bookingEligible,
   };
 }
 

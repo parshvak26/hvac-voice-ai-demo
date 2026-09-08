@@ -94,6 +94,15 @@ function ResultDetails({ state }: { state: DemoState }) {
     ["Service location", analysis.serviceLocation ?? "Not provided"],
     ["Preferred timing", analysis.preferredTiming ?? "Not provided"],
   ];
+  if (analysis.preferredDate !== undefined) {
+    resultItems.push(["Interpreted date", analysis.preferredDate ?? "Not confirmed"]);
+  }
+  if (analysis.preferredTime !== undefined) {
+    resultItems.push(["Interpreted time", analysis.preferredTime ?? "Not confirmed"]);
+  }
+  if (analysis.preferredTimeConfidence !== undefined) {
+    resultItems.push(["Timing confidence", analysis.preferredTimeConfidence]);
+  }
   if (state.result.durationSeconds !== undefined) {
     resultItems.push(["Call duration", `${state.result.durationSeconds} seconds`]);
   }

@@ -9,13 +9,34 @@ When final setup starts, use these small steps in order.
 1. Sign in to Retell.
 2. Create a voice agent with a Retell Response Engine.
 3. Name it clearly, such as `Austin Comfort HVAC Demo`.
-4. Set the language to English (United States).
+4. Set one language that matches the current test audience. Use English (India) for Indian-English testing and English (United States) for US callers.
 5. Copy the contents of `retell/AGENT_PROMPT.md` into the agent prompt.
-6. Set the maximum call duration to 5 minutes.
-7. Enable transcripts and recording because the final result flow needs them.
-8. If available, enable signed recording URLs and use a short retention period.
-9. Publish the agent.
-10. Save the agent ID privately for later.
+6. Set Welcome Message to `AI speaks first` and `Custom message`.
+7. Use this exact custom message: `Hi, I’m Sarah, an AI receptionist for a fictional HVAC demo. This call may be recorded, and nothing will be booked. What can I help with?`
+8. Set Pause Before Speaking to 1.0 second so the browser or phone audio session is ready before Sarah begins. If a test still clips the first word, increase it by 0.2 seconds and retest, up to 1.6 seconds.
+9. Set the maximum call duration to 5 minutes.
+10. Enable transcripts and recording because the final result flow needs them.
+11. If available, enable signed recording URLs and use a short retention period.
+12. Publish the agent.
+13. Save the agent ID privately for later.
+
+## Conversation-quality baseline
+
+Use this as a starting point, then change one setting at a time and run `retell/CONVERSATION_EVALS.md`:
+
+- Model: start with Retell's current Suggested versatile model. Prefer response quality over the cheapest model for the public portfolio demo.
+- Transcription mode: Accurate.
+- Denoising: Remove noise for normal calls. Compare No denoising in a quiet room if short or soft words are dropped.
+- Response wait time: add roughly 0.6 to 1.0 seconds. Enable dynamic adjustment if available.
+- Interruption sensitivity: start near 0.7 to 0.8 and test with both genuine interruptions and background noise.
+- Backchanneling: Off while debugging turn-taking.
+- Background ambience: Off while debugging transcription.
+- Voice speed: around 0.95 to 1.0.
+- Boosted keywords: AC, A/C, air conditioner, air conditioning, HVAC, thermostat, furnace, heat pump, compressor, refrigerant, cooling, heating, Celsius, Fahrenheit.
+
+Do not change the model, prompt, transcription, denoising, and turn-taking settings in the same test. Otherwise, you will not know which change improved or damaged the call.
+
+If the visible transcript contains the complete welcome but its first words are not audible, treat that as opening-audio clipping rather than an LLM or prompt failure. Increase Pause Before Speaking first. Do not duplicate “Hi, I’m Sarah” in the prompt or welcome message to hide clipping. Compare one Retell browser test with one real phone test; if only the browser test clips, record it as a dashboard playback issue rather than changing Sarah's wording.
 
 The Worker also sends a 5-minute limit with every call. This is a second cost guardrail.
 
@@ -41,7 +62,11 @@ It also needs this non-secret mode setting:
 
 ```text
 RETELL_MODE=retell
+DEMO_TIMEZONE=America/Chicago
+DEMO_BOOKING_ENABLED=false
 ```
+
+Keep `DEMO_BOOKING_ENABLED=false` until the webpage form and calendar endpoint are deployed and tested together.
 
 Never place the API key in a `VITE_*` setting, the browser, source code, or chat.
 
@@ -78,7 +103,20 @@ In the agent's post-call analysis settings, add these custom fields:
 | `human_requested` | Boolean | Whether the caller asked for a person |
 | `service_location` | Text | Service address or area, or empty if unknown |
 | `preferred_timing` | Text | Requested timing, or empty if unknown |
+| `preferred_date` | Text | Exact local date in `YYYY-MM-DD`, or empty if it was not confirmed |
+| `preferred_time` | Text | Exact local time in 24-hour `HH:mm`, or empty if it was not confirmed |
+| `preferred_time_confidence` | Selector | One of `high`, `medium`, or `low` |
+| `booking_eligible` | Boolean | Whether the call has safe, exact details for the later booking flow |
 | `summary` | Text | A short factual call summary |
+
+Use these instructions for the four scheduling fields:
+
+- `preferred_date`: Resolve relative wording from Retell's `current_time_America/Chicago` and `current_calendar_America/Chicago` variables. Return only a real `YYYY-MM-DD` date. Leave it empty if the day is unclear.
+- `preferred_time`: Return only `HH:mm` in Austin local time. Leave it empty if AM/PM or the exact time is unclear.
+- `preferred_time_confidence`: Use `high` only when both date and time were explicitly stated or clearly confirmed by the caller. Use `medium` when one part is reasonably inferred, and `low` when timing is broad, conflicting, or missing.
+- `booking_eligible`: Set to `true` only when the caller wants an appointment, is a qualified lead, did not request a human, the call is not an emergency, and both date and time are exact with `high` confidence. Otherwise set it to `false`.
+
+The Worker also independently applies these safety checks. A malformed or inconsistent Retell result cannot become booking-eligible.
 
 Use the current `post_call_analysis_data` settings in Retell. Do not use the retired top-level analysis prompt fields.
 

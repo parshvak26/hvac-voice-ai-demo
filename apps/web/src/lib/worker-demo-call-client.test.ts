@@ -95,14 +95,50 @@ describe("WorkerDemoCallClient", () => {
     expect(result.analysis.issueCategory).toBe("AC not cooling");
   });
 
+  it("accepts validated scheduling analysis from the Worker", async () => {
+    let call = 0;
+    const scheduledResult = {
+      ...completeResult,
+      analysis: {
+        ...completeResult.analysis,
+        preferredDate: "2027-01-16",
+        preferredTime: "17:00",
+        preferredTimeConfidence: "high",
+        bookingEligible: true,
+      },
+    };
+    const client = new WorkerDemoCallClient("https://api.example.test", {
+      request: async () => {
+        call += 1;
+        return call === 1
+          ? new Response(JSON.stringify({ status: "call_requested", requestId }), { status: 202 })
+          : new Response(JSON.stringify(scheduledResult), { status: 200 });
+      },
+      sleep: async () => undefined,
+    });
+
+    await expect(client.startDemoCall(demoRequest, () => undefined))
+      .resolves.toMatchObject({
+        analysis: {
+          preferredDate: "2027-01-16",
+          preferredTime: "17:00",
+          preferredTimeConfidence: "high",
+          bookingEligible: true,
+        },
+      });
+  });
+
   it("maps API rate limits to the form's rate-limited state", async () => {
     const client = new WorkerDemoCallClient("http://localhost:8787", {
       request: async () => new Response(JSON.stringify({
         error: { code: "rate_limited", message: "private detail" },
-      }), { status: 429 }),
+      }), { status: 429, headers: { "Retry-After": "900" } }),
     });
     await expect(client.startDemoCall(demoRequest, () => undefined))
-      .rejects.toMatchObject({ name: "RateLimitError" });
+      .rejects.toMatchObject({
+        name: "RateLimitError",
+        message: "This demo request is limited for now. Please try again in about 15 minutes.",
+      });
   });
 
   it("stops safely when polling exceeds its time limit", async () => {

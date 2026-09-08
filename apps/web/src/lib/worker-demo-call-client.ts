@@ -32,6 +32,9 @@ const publicStatuses = new Set<PublicDemoStatus>([
   "failed",
 ]);
 const urgencyValues = new Set(["low", "medium", "high", "emergency"]);
+const preferredTimeConfidenceValues = new Set(["low", "medium", "high"]);
+const isoDatePattern = /^\d{4}-(0[1-9]|1[0-2])-([0-2]\d|3[01])$/;
+const twentyFourHourTimePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
 const requestIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const lifecycle: DemoCallStatus[] = [
   "call_requested",
@@ -80,14 +83,35 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-function readApiError(value: unknown, status: number): Error {
+function isValidIsoDate(value: string): boolean {
+  if (!isoDatePattern.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day;
+}
+
+function formatRetryDelay(value: string | null): string | null {
+  if (!value || !/^\d+$/.test(value)) return null;
+  const seconds = Number(value);
+  if (!Number.isSafeInteger(seconds) || seconds <= 0) return null;
+  if (seconds < 90) return "about a minute";
+  if (seconds < 60 * 60) return `about ${Math.ceil(seconds / 60)} minutes`;
+  return `about ${Math.ceil(seconds / (60 * 60))} hours`;
+}
+
+function readApiError(value: unknown, status: number, headers?: Headers): Error {
   const response = value as Partial<ApiErrorResponse>;
   const code = response?.error?.code;
   if (status === 429 || code === "rate_limited" || code === "daily_limit_reached") {
+    const retryDelay = formatRetryDelay(headers?.get("Retry-After") ?? null);
     const error = new Error(
       code === "daily_limit_reached"
         ? "The demo has reached its daily limit. Please try again tomorrow."
-        : "This demo request is limited for now. Please try again later.",
+        : retryDelay
+          ? `This demo request is limited for now. Please try again in ${retryDelay}.`
+          : "This demo request is limited for now. Please try again later.",
     );
     error.name = "RateLimitError";
     return error;
@@ -157,6 +181,31 @@ function parseAnalysis(value: unknown): DemoCallAnalysis | null {
     !value.summary ||
     value.summary.length > 2_000
   ) {
+    return null;
+  }
+
+  const schedulingFields = [
+    "preferredDate",
+    "preferredTime",
+    "preferredTimeConfidence",
+    "bookingEligible",
+  ];
+  const hasSchedulingAnalysis = schedulingFields.some((field) =>
+    Object.prototype.hasOwnProperty.call(value, field)
+  );
+  if (hasSchedulingAnalysis && (
+    !(value.preferredDate === null || (
+      typeof value.preferredDate === "string" &&
+      isValidIsoDate(value.preferredDate)
+    )) ||
+    !(value.preferredTime === null || (
+      typeof value.preferredTime === "string" &&
+      twentyFourHourTimePattern.test(value.preferredTime)
+    )) ||
+    typeof value.preferredTimeConfidence !== "string" ||
+    !preferredTimeConfidenceValues.has(value.preferredTimeConfidence) ||
+    typeof value.bookingEligible !== "boolean"
+  )) {
     return null;
   }
   return value as unknown as DemoCallAnalysis;
@@ -268,7 +317,7 @@ export class WorkerDemoCallClient implements DemoCallClient {
         : new Error("The demo service could not be reached. Please try again.");
     }
     const createBody = await readJson(response);
-    if (!response.ok) throw readApiError(createBody, response.status);
+    if (!response.ok) throw readApiError(createBody, response.status, response.headers);
     const created = parseCreateResult(createBody);
     if (!created) throw new Error("The demo service returned an invalid response.");
 
@@ -298,7 +347,9 @@ export class WorkerDemoCallClient implements DemoCallClient {
           : new Error("The demo service could not be reached. Please try again.");
       }
       const resultBody = await readJson(resultResponse);
-      if (!resultResponse.ok) throw readApiError(resultBody, resultResponse.status);
+      if (!resultResponse.ok) {
+        throw readApiError(resultBody, resultResponse.status, resultResponse.headers);
+      }
       const result = parsePublicResult(resultBody);
       if (!result) throw new Error("The demo service returned an invalid result.");
       if (result.status === "failed") {

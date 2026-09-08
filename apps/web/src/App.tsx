@@ -101,6 +101,7 @@ export default function App() {
           <DemoCallForm
             client={client}
             status={demoState.status}
+            errorMessage={demoState.errorMessage}
             onStatusChange={handleStatusChange}
             onComplete={handleComplete}
             onReset={handleReset}

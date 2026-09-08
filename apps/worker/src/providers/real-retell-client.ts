@@ -20,6 +20,8 @@ interface RealRetellClientOptions {
   fromNumberE164: string;
   companyName: string;
   serviceArea: string;
+  timezone: "America/Chicago";
+  bookingEnabled: boolean;
   request?: typeof fetch;
 }
 
@@ -61,7 +63,8 @@ export class RealRetellClient implements RetellClient {
       !/^[A-Za-z0-9_-]{1,128}$/.test(options.agentId) ||
       !isUsE164Number(options.fromNumberE164) ||
       !options.companyName.trim() ||
-      !options.serviceArea.trim()
+      !options.serviceArea.trim() ||
+      options.timezone !== "America/Chicago"
     ) {
       throw new RetellConfigurationError();
     }
@@ -105,6 +108,8 @@ export class RealRetellClient implements RetellClient {
             demo_company_name: this.options.companyName,
             demo_agent_name: "Sarah",
             demo_service_area: this.options.serviceArea,
+            demo_timezone: this.options.timezone,
+            demo_booking_enabled: String(this.options.bookingEnabled),
             fictional_demo: "true",
           },
         }),

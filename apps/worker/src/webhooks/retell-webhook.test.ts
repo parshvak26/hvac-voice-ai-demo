@@ -31,6 +31,10 @@ describe("mapRetellWebhook", () => {
             human_requested: false,
             service_location: "Austin, TX",
             preferred_timing: "Tomorrow",
+            preferred_date: "2027-01-16",
+            preferred_time: "17:00",
+            preferred_time_confidence: "high",
+            booking_eligible: true,
             summary: "The caller wants an AC visit tomorrow.",
           },
         },
@@ -43,9 +47,94 @@ describe("mapRetellWebhook", () => {
         status: "complete",
         publicToken: requestId,
         durationMilliseconds: 78_000,
-        analysis: { issueCategory: "AC not cooling", urgency: "medium" },
+        analysis: {
+          issueCategory: "AC not cooling",
+          urgency: "medium",
+          preferredDate: "2027-01-16",
+          preferredTime: "17:00",
+          preferredTimeConfidence: "high",
+          bookingEligible: true,
+        },
       },
     });
+  });
+
+  it("fails booking eligibility closed when Retell returns inconsistent data", () => {
+    const result = mapRetellWebhook({
+      event: "call_analyzed",
+      call: {
+        ...baseCall,
+        transcript: "Agent: When would you prefer?\nUser: Tomorrow afternoon",
+        call_analysis: {
+          custom_analysis_data: {
+            issue_category: "AC not cooling",
+            urgency: "medium",
+            lead_qualified: true,
+            appointment_interest: true,
+            human_requested: false,
+            service_location: "Austin, TX",
+            preferred_timing: "Tomorrow afternoon",
+            preferred_date: "2027-01-16",
+            preferred_time: null,
+            preferred_time_confidence: "low",
+            booking_eligible: true,
+            summary: "The caller gave only a broad time window.",
+          },
+        },
+      },
+    }, "agent-test");
+
+    expect(result).toMatchObject({
+      kind: "update",
+      value: {
+        status: "complete",
+        analysis: {
+          preferredDate: "2027-01-16",
+          preferredTime: null,
+          preferredTimeConfidence: "low",
+          bookingEligible: false,
+        },
+      },
+    });
+  });
+
+  it("keeps the base result but drops malformed scheduling analysis", () => {
+    const result = mapRetellWebhook({
+      event: "call_analyzed",
+      call: {
+        ...baseCall,
+        transcript: "Agent: Hello\nUser: My AC is not cooling",
+        call_analysis: {
+          custom_analysis_data: {
+            issue_category: "AC not cooling",
+            urgency: "medium",
+            lead_qualified: true,
+            appointment_interest: true,
+            human_requested: false,
+            service_location: "Austin, TX",
+            preferred_timing: "February 31 at 5 PM",
+            preferred_date: "2027-02-31",
+            preferred_time: "17:00",
+            preferred_time_confidence: "high",
+            booking_eligible: true,
+            summary: "The scheduling date was invalid.",
+          },
+        },
+      },
+    }, "agent-test");
+
+    expect(result).toMatchObject({
+      kind: "update",
+      value: {
+        status: "complete",
+        analysis: {
+          preferredTiming: "February 31 at 5 PM",
+        },
+      },
+    });
+    if (result.kind === "update") {
+      expect(result.value.analysis).not.toHaveProperty("bookingEligible");
+    }
   });
 
   it("keeps analyzed calls pending when structured data is missing", () => {

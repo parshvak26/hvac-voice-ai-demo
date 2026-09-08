@@ -17,6 +17,8 @@
   "vars": {
     "ALLOWED_ORIGINS": "https://YOUR_GITHUB_USER.github.io",
     "DEMO_COMPANY_NAME": "Austin Comfort HVAC",
+    "DEMO_TIMEZONE": "America/Chicago",
+    "DEMO_BOOKING_ENABLED": "false",
     "RETELL_MODE": "retell",
     "PERSISTENCE_MODE": "supabase",
     "TURNSTILE_MODE": "cloudflare",

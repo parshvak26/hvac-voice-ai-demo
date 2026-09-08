@@ -13,6 +13,8 @@ HASH_SALT=
 
 # Add these during final Retell setup.
 RETELL_MODE=retell
+DEMO_TIMEZONE=America/Chicago
+DEMO_BOOKING_ENABLED=false
 RETELL_API_KEY=
 RETELL_AGENT_ID=
 RETELL_FROM_NUMBER=
