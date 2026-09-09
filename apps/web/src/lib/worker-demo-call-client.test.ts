@@ -144,6 +144,41 @@ describe("WorkerDemoCallClient", () => {
     ]);
   });
 
+  it("restores from persistent storage when tab storage is lost", async () => {
+    const tabStorage = createStorage();
+    const persistentStorage = createStorage();
+    let call = 0;
+    const firstClient = new WorkerDemoCallClient("https://api.example.test", {
+      storage: tabStorage,
+      persistentStorage,
+      request: async () => {
+        call += 1;
+        return call === 1
+          ? new Response(JSON.stringify({ status: "call_requested", requestId }), { status: 202 })
+          : new Response(JSON.stringify({ status: "requested" }), { status: 200 });
+      },
+      sleep: async () => { throw new DOMException("Tab recreated", "AbortError"); },
+      now: () => 1_000,
+    });
+
+    await expect(firstClient.startDemoCall(demoRequest, () => undefined))
+      .rejects.toMatchObject({ name: "AbortError" });
+    tabStorage.removeItem("hvac-demo-active-request-v1");
+
+    const newTabStorage = createStorage();
+    const restoredClient = new WorkerDemoCallClient("https://api.example.test", {
+      storage: newTabStorage,
+      persistentStorage,
+      request: async () => new Response(JSON.stringify(completeResult), { status: 200 }),
+      sleep: async () => undefined,
+      now: () => 1_001,
+    });
+
+    await expect(restoredClient.resumeDemoCall(() => undefined))
+      .resolves.toMatchObject({ analysis: completeResult.analysis });
+    expect(newTabStorage.getItem("hvac-demo-active-request-v1")).toContain(requestId);
+  });
+
   it("ignores expired or malformed saved call state", async () => {
     const storage = createStorage();
     storage.setItem("hvac-demo-active-request-v1", JSON.stringify({
@@ -158,6 +193,22 @@ describe("WorkerDemoCallClient", () => {
 
     await expect(client.resumeDemoCall(() => undefined)).resolves.toBeNull();
     expect(storage.getItem("hvac-demo-active-request-v1")).toBeNull();
+  });
+
+  it("clears saved call state from both storage areas", () => {
+    const storage = createStorage();
+    const persistentStorage = createStorage();
+    storage.setItem("hvac-demo-active-request-v1", "session");
+    persistentStorage.setItem("hvac-demo-active-request-v1", "persistent");
+    const client = new WorkerDemoCallClient("https://api.example.test", {
+      storage,
+      persistentStorage,
+    });
+
+    client.clearSavedDemoCall();
+
+    expect(storage.getItem("hvac-demo-active-request-v1")).toBeNull();
+    expect(persistentStorage.getItem("hvac-demo-active-request-v1")).toBeNull();
   });
 
   it("accepts validated scheduling analysis from the Worker", async () => {

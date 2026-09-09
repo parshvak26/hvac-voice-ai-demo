@@ -24,6 +24,7 @@ interface WorkerDemoCallClientOptions {
   pollIntervalMilliseconds?: number;
   pollTimeoutMilliseconds?: number;
   storage?: Pick<Storage, "getItem" | "setItem" | "removeItem"> | null;
+  persistentStorage?: Pick<Storage, "getItem" | "setItem" | "removeItem"> | null;
 }
 
 const publicStatuses = new Set<PublicDemoStatus>([
@@ -325,6 +326,7 @@ export class WorkerDemoCallClient implements DemoCallClient {
   private readonly pollIntervalMilliseconds: number;
   private readonly pollTimeoutMilliseconds: number;
   private readonly storage: WorkerDemoCallClientOptions["storage"];
+  private readonly persistentStorage: WorkerDemoCallClientOptions["persistentStorage"];
 
   constructor(apiOrigin: string, options: WorkerDemoCallClientOptions = {}) {
     this.apiOrigin = normalizeApiOrigin(apiOrigin);
@@ -333,51 +335,73 @@ export class WorkerDemoCallClient implements DemoCallClient {
     this.now = options.now ?? Date.now;
     this.pollIntervalMilliseconds = options.pollIntervalMilliseconds ?? 2_000;
     this.pollTimeoutMilliseconds = options.pollTimeoutMilliseconds ?? 8 * 60_000;
-    this.storage = options.storage === undefined
-      ? (typeof window === "undefined" ? null : window.sessionStorage)
-      : options.storage;
+    if (options.storage === undefined) {
+      try {
+        this.storage = typeof window === "undefined" ? null : window.sessionStorage;
+      } catch {
+        this.storage = null;
+      }
+    } else {
+      this.storage = options.storage;
+    }
+    if (options.persistentStorage === undefined) {
+      try {
+        this.persistentStorage = options.storage === undefined && typeof window !== "undefined"
+          ? window.localStorage
+          : null;
+      } catch {
+        this.persistentStorage = null;
+      }
+    } else {
+      this.persistentStorage = options.persistentStorage;
+    }
   }
 
   private saveRequestId(requestId: string): void {
-    try {
-      this.storage?.setItem(savedRequestStorageKey, JSON.stringify({
-        requestId,
-        savedAt: this.now(),
-      }));
-    } catch {
-      // Storage can be unavailable in privacy-restricted browsers. The live call still works.
+    const serialized = JSON.stringify({ requestId, savedAt: this.now() });
+    for (const storage of [this.storage, this.persistentStorage]) {
+      try {
+        storage?.setItem(savedRequestStorageKey, serialized);
+      } catch {
+        // Storage can be unavailable in privacy-restricted browsers. The live call still works.
+      }
     }
   }
 
   private readSavedRequestId(): string | null {
-    try {
-      const raw = this.storage?.getItem(savedRequestStorageKey);
-      if (!raw) return null;
-      const saved = JSON.parse(raw) as unknown;
-      if (
-        !isRecord(saved) ||
-        typeof saved.requestId !== "string" ||
-        !requestIdPattern.test(saved.requestId) ||
-        typeof saved.savedAt !== "number" ||
-        !Number.isFinite(saved.savedAt) ||
-        saved.savedAt > this.now() + 60_000 ||
-        this.now() - saved.savedAt > savedRequestMaxAgeMilliseconds
-      ) {
-        this.clearSavedDemoCall();
-        return null;
+    for (const storage of [this.storage, this.persistentStorage]) {
+      try {
+        const raw = storage?.getItem(savedRequestStorageKey);
+        if (!raw) continue;
+        const saved = JSON.parse(raw) as unknown;
+        if (
+          !isRecord(saved) ||
+          typeof saved.requestId !== "string" ||
+          !requestIdPattern.test(saved.requestId) ||
+          typeof saved.savedAt !== "number" ||
+          !Number.isFinite(saved.savedAt) ||
+          saved.savedAt > this.now() + 60_000 ||
+          this.now() - saved.savedAt > savedRequestMaxAgeMilliseconds
+        ) {
+          this.clearSavedDemoCall();
+          return null;
+        }
+        this.saveRequestId(saved.requestId);
+        return saved.requestId;
+      } catch {
+        // Try the second storage area before giving up on recovery.
       }
-      return saved.requestId;
-    } catch {
-      this.clearSavedDemoCall();
-      return null;
     }
+    return null;
   }
 
   clearSavedDemoCall(): void {
-    try {
-      this.storage?.removeItem(savedRequestStorageKey);
-    } catch {
-      // Clearing an unavailable storage area is best effort.
+    for (const storage of [this.storage, this.persistentStorage]) {
+      try {
+        storage?.removeItem(savedRequestStorageKey);
+      } catch {
+        // Clearing an unavailable storage area is best effort.
+      }
     }
   }
 
