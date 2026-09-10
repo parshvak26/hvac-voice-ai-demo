@@ -25,6 +25,13 @@ interface WorkerDemoCallClientOptions {
   pollTimeoutMilliseconds?: number;
   storage?: Pick<Storage, "getItem" | "setItem" | "removeItem"> | null;
   persistentStorage?: Pick<Storage, "getItem" | "setItem" | "removeItem"> | null;
+  recoveryUrl?: RecoveryUrl | null;
+}
+
+interface RecoveryUrl {
+  readRequestId(): string | null;
+  saveRequestId(requestId: string): void;
+  clearRequestId(): void;
 }
 
 const publicStatuses = new Set<PublicDemoStatus>([
@@ -50,6 +57,30 @@ const lifecycle: DemoCallStatus[] = [
 ];
 const savedRequestStorageKey = "hvac-demo-active-request-v1";
 const savedRequestMaxAgeMilliseconds = 2 * 60 * 60_000;
+const recoveryHashPrefix = "#demo-request=";
+
+function createBrowserRecoveryUrl(): RecoveryUrl | null {
+  if (typeof window === "undefined") return null;
+  return {
+    readRequestId() {
+      const value = window.location.hash.startsWith(recoveryHashPrefix)
+        ? window.location.hash.slice(recoveryHashPrefix.length)
+        : "";
+      return requestIdPattern.test(value) ? value : null;
+    },
+    saveRequestId(requestId) {
+      const url = new URL(window.location.href);
+      url.hash = `${recoveryHashPrefix.slice(1)}${requestId}`;
+      window.history.replaceState(window.history.state, "", url);
+    },
+    clearRequestId() {
+      if (!window.location.hash.startsWith(recoveryHashPrefix)) return;
+      const url = new URL(window.location.href);
+      url.hash = "";
+      window.history.replaceState(window.history.state, "", url);
+    },
+  };
+}
 
 function defaultSleep(milliseconds: number, signal?: AbortSignal) {
   return new Promise<void>((resolve, reject) => {
@@ -327,6 +358,7 @@ export class WorkerDemoCallClient implements DemoCallClient {
   private readonly pollTimeoutMilliseconds: number;
   private readonly storage: WorkerDemoCallClientOptions["storage"];
   private readonly persistentStorage: WorkerDemoCallClientOptions["persistentStorage"];
+  private readonly recoveryUrl: WorkerDemoCallClientOptions["recoveryUrl"];
 
   constructor(apiOrigin: string, options: WorkerDemoCallClientOptions = {}) {
     this.apiOrigin = normalizeApiOrigin(apiOrigin);
@@ -355,6 +387,9 @@ export class WorkerDemoCallClient implements DemoCallClient {
     } else {
       this.persistentStorage = options.persistentStorage;
     }
+    this.recoveryUrl = options.recoveryUrl === undefined
+      ? createBrowserRecoveryUrl()
+      : options.recoveryUrl;
   }
 
   private saveRequestId(requestId: string): void {
@@ -365,6 +400,11 @@ export class WorkerDemoCallClient implements DemoCallClient {
       } catch {
         // Storage can be unavailable in privacy-restricted browsers. The live call still works.
       }
+    }
+    try {
+      this.recoveryUrl?.saveRequestId(requestId);
+    } catch {
+      // Updating the address can be restricted in embedded browsers.
     }
   }
 
@@ -392,6 +432,15 @@ export class WorkerDemoCallClient implements DemoCallClient {
         // Try the second storage area before giving up on recovery.
       }
     }
+    try {
+      const requestId = this.recoveryUrl?.readRequestId();
+      if (requestId && requestIdPattern.test(requestId)) {
+        this.saveRequestId(requestId);
+        return requestId;
+      }
+    } catch {
+      // URL recovery is best effort when browser navigation is restricted.
+    }
     return null;
   }
 
@@ -402,6 +451,11 @@ export class WorkerDemoCallClient implements DemoCallClient {
       } catch {
         // Clearing an unavailable storage area is best effort.
       }
+    }
+    try {
+      this.recoveryUrl?.clearRequestId();
+    } catch {
+      // Clearing URL recovery state is best effort.
     }
   }
 

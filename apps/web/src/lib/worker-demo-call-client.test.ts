@@ -179,6 +179,48 @@ describe("WorkerDemoCallClient", () => {
     expect(newTabStorage.getItem("hvac-demo-active-request-v1")).toContain(requestId);
   });
 
+  it("restores from the URL fragment when embedded-browser storage is lost", async () => {
+    let savedRequestId: string | null = null;
+    const recoveryUrl = {
+      readRequestId: () => savedRequestId,
+      saveRequestId: (value: string) => { savedRequestId = value; },
+      clearRequestId: () => { savedRequestId = null; },
+    };
+    const unavailableStorage = {
+      getItem: () => null,
+      setItem: () => { throw new Error("storage unavailable"); },
+      removeItem: () => undefined,
+    };
+    let call = 0;
+    const firstClient = new WorkerDemoCallClient("https://api.example.test", {
+      storage: unavailableStorage,
+      persistentStorage: unavailableStorage,
+      recoveryUrl,
+      request: async () => {
+        call += 1;
+        return call === 1
+          ? new Response(JSON.stringify({ status: "call_requested", requestId }), { status: 202 })
+          : new Response(JSON.stringify({ status: "requested" }), { status: 200 });
+      },
+      sleep: async () => { throw new DOMException("Web view recreated", "AbortError"); },
+    });
+
+    await expect(firstClient.startDemoCall(demoRequest, () => undefined))
+      .rejects.toMatchObject({ name: "AbortError" });
+    expect(savedRequestId).toBe(requestId);
+
+    const restoredClient = new WorkerDemoCallClient("https://api.example.test", {
+      storage: unavailableStorage,
+      persistentStorage: unavailableStorage,
+      recoveryUrl,
+      request: async () => new Response(JSON.stringify(completeResult), { status: 200 }),
+      sleep: async () => undefined,
+    });
+
+    await expect(restoredClient.resumeDemoCall(() => undefined))
+      .resolves.toMatchObject({ analysis: completeResult.analysis });
+  });
+
   it("ignores expired or malformed saved call state", async () => {
     const storage = createStorage();
     storage.setItem("hvac-demo-active-request-v1", JSON.stringify({
@@ -209,6 +251,23 @@ describe("WorkerDemoCallClient", () => {
 
     expect(storage.getItem("hvac-demo-active-request-v1")).toBeNull();
     expect(persistentStorage.getItem("hvac-demo-active-request-v1")).toBeNull();
+  });
+
+  it("clears the URL recovery fragment when the demo is reset", () => {
+    let savedRequestId: string | null = requestId;
+    const client = new WorkerDemoCallClient("https://api.example.test", {
+      storage: null,
+      persistentStorage: null,
+      recoveryUrl: {
+        readRequestId: () => savedRequestId,
+        saveRequestId: (value) => { savedRequestId = value; },
+        clearRequestId: () => { savedRequestId = null; },
+      },
+    });
+
+    client.clearSavedDemoCall();
+
+    expect(savedRequestId).toBeNull();
   });
 
   it("accepts validated scheduling analysis from the Worker", async () => {
