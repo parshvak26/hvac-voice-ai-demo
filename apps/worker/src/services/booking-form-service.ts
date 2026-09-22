@@ -64,6 +64,7 @@ export async function createBookingFormOffer(
   return {
     ...token,
     timezone: "America/Chicago",
+    calendarBookingEnabled: false,
     suggestedDate:
       highConfidence && dateIsUsable
         ? (analysis.preferredDate ?? null)

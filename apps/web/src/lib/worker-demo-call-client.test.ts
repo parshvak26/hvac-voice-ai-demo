@@ -278,6 +278,7 @@ describe("WorkerDemoCallClient", () => {
         token: `v1.${requestId}.1800003600.${"a".repeat(43)}`,
         expiresAt: "2027-01-15T09:00:00.000Z",
         timezone: "America/Chicago",
+        calendarBookingEnabled: true,
         suggestedDate: "2027-01-16",
         suggestedTime: "17:00",
       },
@@ -339,6 +340,47 @@ describe("WorkerDemoCallClient", () => {
       status: "details_received",
     });
     expect(JSON.parse(postedBody)).toEqual(details);
+  });
+
+  it("loads available slots and accepts a created calendar event", async () => {
+    let call = 0;
+    const client = new WorkerDemoCallClient("https://api.example.test", {
+      request: async () => {
+        call += 1;
+        return call === 1
+          ? new Response(JSON.stringify({
+              requestedDate: "2027-01-16",
+              timezone: "America/Chicago",
+              slots: [{ time: "15:00", label: "3:00 PM" }],
+            }), { status: 200 })
+          : new Response(JSON.stringify({
+              status: "calendar_created",
+              startsAt: "2027-01-16T21:00:00.000Z",
+              endsAt: "2027-01-16T22:00:00.000Z",
+              timezone: "America/Chicago",
+            }), { status: 201 });
+      },
+    });
+
+    await expect(client.getBookingAvailability({
+      token: "secure-token",
+      requestedDate: "2027-01-16",
+    })).resolves.toMatchObject({ slots: [{ time: "15:00", label: "3:00 PM" }] });
+    await expect(client.submitBookingDetails({
+      token: "secure-token",
+      email: "customer@example.com",
+      addressLine1: "100 Congress Avenue",
+      city: "Austin",
+      region: "TX",
+      postalCode: "78701",
+      requestedDate: "2027-01-16",
+      requestedTime: "15:00",
+    })).resolves.toEqual({
+      status: "calendar_created",
+      startsAt: "2027-01-16T21:00:00.000Z",
+      endsAt: "2027-01-16T22:00:00.000Z",
+      timezone: "America/Chicago",
+    });
   });
 
   it("shows a useful message when the secure form expires", async () => {

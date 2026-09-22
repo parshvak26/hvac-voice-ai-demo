@@ -29,6 +29,8 @@ The migrations are:
 
 `supabase/migrations/20260908000100_add_booking_details.sql`
 
+`supabase/migrations/20260922000100_enable_calendar_booking.sql`
+
 Always check the dry-run output before applying the migration.
 
 ## 3. Create your local secret file
@@ -66,7 +68,7 @@ New mock demo requests will now be written to `demo_requests` and `calls`.
 - Webhook event fingerprints are stored for safe replay protection. Raw webhook bodies are not stored.
 - Recording URLs are stored privately, but audio files are not copied into Supabase Storage.
 - Post-call email, address, ZIP, and requested time are stored in `booking_detail_submissions` and never returned by the public result API.
-- A database uniqueness rule permits only one details submission per demo call.
+- Database uniqueness rules permit only one details submission per demo call and one active booking per calendar slot.
 
 ## Return to memory mode
 

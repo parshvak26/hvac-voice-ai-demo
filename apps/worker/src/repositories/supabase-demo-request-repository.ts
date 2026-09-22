@@ -314,14 +314,45 @@ export class SupabaseDemoRequestRepository implements DemoRequestRepository {
       p_timezone: record.timezone,
       p_token_expires_at: record.tokenExpiresAt,
       p_submitted_at: record.submittedAt,
+      p_status: record.status,
     });
     if (error || !Array.isArray(data) || data.length !== 1) {
       throw new PersistenceError("submit_booking_details", error?.code);
     }
     const result = (data[0] as { result?: unknown }).result;
-    if (!new Set(["created", "already_submitted", "unavailable"]).has(String(result))) {
+    if (!new Set(["created", "already_submitted", "slot_unavailable", "unavailable"]).has(String(result))) {
       throw new PersistenceError("map_booking_details_result");
     }
     return result as BookingDetailsSubmissionResult;
+  }
+
+  async markCalendarBookingCreated(
+    demoRequestId: string,
+    calendarEventId: string,
+    updatedAt: string,
+  ): Promise<void> {
+    const { data, error } = await this.client.rpc("complete_calendar_booking", {
+      p_demo_request_id: demoRequestId,
+      p_calendar_event_id: calendarEventId,
+      p_updated_at: updatedAt,
+    });
+    if (error || data !== true) {
+      throw new PersistenceError("complete_calendar_booking", error?.code);
+    }
+  }
+
+  async markCalendarBookingFailed(
+    demoRequestId: string,
+    errorCode: string,
+    updatedAt: string,
+  ): Promise<void> {
+    const { data, error } = await this.client.rpc("fail_calendar_booking", {
+      p_demo_request_id: demoRequestId,
+      p_error_code: errorCode,
+      p_updated_at: updatedAt,
+    });
+    if (error || data !== true) {
+      throw new PersistenceError("fail_calendar_booking", error?.code);
+    }
   }
 }

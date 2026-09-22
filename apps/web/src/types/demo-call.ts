@@ -1,4 +1,6 @@
 import type {
+  BookingAvailabilityRequest,
+  BookingAvailabilityResponse,
   BookingFormOffer,
   DemoCallAnalysis,
   PublicTranscriptLine,
@@ -49,6 +51,9 @@ export interface DemoCallClient {
   submitBookingDetails(
     request: SubmitBookingDetailsRequest,
   ): Promise<SubmitBookingDetailsResponse>;
+  getBookingAvailability(
+    request: BookingAvailabilityRequest,
+  ): Promise<BookingAvailabilityResponse>;
   resumeDemoCall(
     onStatusChange: (status: DemoCallStatus) => void,
     signal?: AbortSignal,

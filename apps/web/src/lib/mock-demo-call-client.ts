@@ -5,6 +5,7 @@ import type {
   DemoCallStatus,
 } from "../types/demo-call";
 import type {
+  BookingAvailabilityResponse,
   SubmitBookingDetailsResponse,
 } from "@hvac-demo/shared";
 
@@ -77,6 +78,7 @@ function createDemoResult(): DemoCallResult {
     token: "local-mock-booking-token",
     expiresAt: new Date(Date.now() + 60 * 60_000).toISOString(),
     timezone: "America/Chicago",
+    calendarBookingEnabled: false,
     suggestedDate,
     suggestedTime: "15:00",
   },
@@ -131,5 +133,18 @@ export class MockDemoCallClient implements DemoCallClient {
   async submitBookingDetails(): Promise<SubmitBookingDetailsResponse> {
     await wait(450);
     return { status: "details_received" };
+  }
+
+  async getBookingAvailability(): Promise<BookingAvailabilityResponse> {
+    await wait(250);
+    return {
+      requestedDate: tomorrowInAustin(),
+      timezone: "America/Chicago",
+      slots: [
+        { time: "14:00", label: "2:00 PM" },
+        { time: "15:00", label: "3:00 PM" },
+        { time: "16:00", label: "4:00 PM" },
+      ],
+    };
   }
 }

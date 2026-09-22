@@ -1,8 +1,7 @@
 import type { SubmitBookingDetailsRequest } from "@hvac-demo/shared";
+import { isBookableDate, isBookableTime } from "../services/booking-schedule";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const datePattern = /^\d{4}-(0[1-9]|1[0-2])-([0-2]\d|3[01])$/;
-const requestedTimePattern = /^(?:0[89]|1[0-7]):(?:00|30)$|^18:00$/;
 
 type ValidationResult =
   | { ok: true; value: SubmitBookingDetailsRequest }
@@ -10,33 +9,6 @@ type ValidationResult =
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
-function localDate(now: number): string {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Chicago",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date(now));
-  const get = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((part) => part.type === type)?.value ?? "";
-  return `${get("year")}-${get("month")}-${get("day")}`;
-}
-
-function isRealDate(value: string): boolean {
-  if (!datePattern.test(value)) return false;
-  const [year, month, day] = value.split("-").map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return date.getUTCFullYear() === year &&
-    date.getUTCMonth() === month - 1 &&
-    date.getUTCDate() === day;
-}
-
-function addDays(value: string, days: number): string {
-  const [year, month, day] = value.split("-").map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day + days));
-  return date.toISOString().slice(0, 10);
 }
 
 function cleanText(value: unknown): string | null {
@@ -97,16 +69,11 @@ export function validateBookingDetailsBody(
   if (!/^\d{5}$/.test(postalCode)) {
     return { ok: false, code: "invalid_request", message: "Enter a five-digit ZIP code." };
   }
-  const today = localDate(now);
-  if (
-    !isRealDate(requestedDate) ||
-    requestedDate < today ||
-    requestedDate > addDays(today, 30)
-  ) {
+  if (!isBookableDate(requestedDate, now)) {
     return { ok: false, code: "invalid_request", message: "Choose a date within the next 30 days." };
   }
-  if (!requestedTimePattern.test(requestedTime)) {
-    return { ok: false, code: "invalid_request", message: "Choose a time from 8:00 AM to 6:00 PM in 30-minute steps." };
+  if (!isBookableTime(requestedTime)) {
+    return { ok: false, code: "invalid_request", message: "Choose an available time from 8:00 AM to 5:00 PM." };
   }
 
   return {

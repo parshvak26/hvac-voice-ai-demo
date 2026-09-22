@@ -20,4 +20,8 @@ export interface WorkerEnv {
   MAX_CALL_DURATION_SECONDS: string;
   SUPABASE_URL?: string;
   SUPABASE_SECRET_KEY?: string;
+  GOOGLE_CALENDAR_ID?: string;
+  GOOGLE_OAUTH_CLIENT_ID?: string;
+  GOOGLE_OAUTH_CLIENT_SECRET?: string;
+  GOOGLE_OAUTH_REFRESH_TOKEN?: string;
 }

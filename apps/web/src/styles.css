@@ -925,7 +925,8 @@ select:disabled {
   font-weight: 800;
 }
 
-.booking-form__grid input {
+.booking-form__grid input,
+.booking-form__grid select {
   width: 100%;
   min-height: 46px;
   padding: 10px 12px;
@@ -935,7 +936,8 @@ select:disabled {
   color: var(--ink-deep);
 }
 
-.booking-form__grid input:focus {
+.booking-form__grid input:focus,
+.booking-form__grid select:focus {
   border-color: var(--orange);
 }
 

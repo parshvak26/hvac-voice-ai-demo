@@ -1,4 +1,8 @@
-import type { BookingFormOffer } from "@hvac-demo/shared";
+import type {
+  BookingFormOffer,
+  BookingTimeSlot,
+  SubmitBookingDetailsResponse,
+} from "@hvac-demo/shared";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { DemoCallClient } from "../types/demo-call";
 
@@ -31,6 +35,11 @@ export function BookingDetailsForm({ client, offer }: BookingDetailsFormProps) {
   const [requestedDate, setRequestedDate] = useState(offer.suggestedDate ?? "");
   const [requestedTime, setRequestedTime] = useState(offer.suggestedTime ?? "");
   const [status, setStatus] = useState<"idle" | "submitting" | "complete">("idle");
+  const [submissionResult, setSubmissionResult] = useState<SubmitBookingDetailsResponse | null>(null);
+  const [availabilityStatus, setAvailabilityStatus] = useState<"idle" | "loading" | "ready" | "failed">(
+    offer.calendarBookingEnabled && offer.suggestedDate ? "loading" : "idle",
+  );
+  const [availableSlots, setAvailableSlots] = useState<BookingTimeSlot[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [dateRange] = useState(dateRangeInAustin);
   const sectionRef = useRef<HTMLDivElement>(null);
@@ -39,12 +48,52 @@ export function BookingDetailsForm({ client, offer }: BookingDetailsFormProps) {
     sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
+  useEffect(() => {
+    if (!offer.calendarBookingEnabled || !requestedDate) return;
+    let cancelled = false;
+    void client.getBookingAvailability({
+      token: offer.token,
+      requestedDate,
+    }).then((availability) => {
+      if (cancelled) return;
+      setAvailableSlots(availability.slots);
+      setRequestedTime((current) => {
+        if (availability.slots.some((slot) => slot.time === current)) return current;
+        if (
+          offer.suggestedTime &&
+          availability.slots.some((slot) => slot.time === offer.suggestedTime)
+        ) {
+          return offer.suggestedTime;
+        }
+        return "";
+      });
+      setAvailabilityStatus("ready");
+    }).catch((error: unknown) => {
+      if (cancelled) return;
+      setRequestedTime("");
+      setAvailabilityStatus("failed");
+      setErrorMessage(
+        error instanceof Error ? error.message : "Available times could not be loaded.",
+      );
+    });
+    return () => { cancelled = true; };
+  }, [client, offer.calendarBookingEnabled, offer.suggestedTime, offer.token, requestedDate]);
+
+  const handleDateChange = (value: string) => {
+    setRequestedDate(value);
+    if (!offer.calendarBookingEnabled) return;
+    setRequestedTime("");
+    setAvailableSlots([]);
+    setErrorMessage("");
+    setAvailabilityStatus(value ? "loading" : "idle");
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setStatus("submitting");
     setErrorMessage("");
     try {
-      await client.submitBookingDetails({
+      const result = await client.submitBookingDetails({
         token: offer.token,
         email,
         addressLine1,
@@ -54,6 +103,7 @@ export function BookingDetailsForm({ client, offer }: BookingDetailsFormProps) {
         requestedDate,
         requestedTime,
       });
+      setSubmissionResult(result);
       setStatus("complete");
     } catch (error) {
       setStatus("idle");
@@ -77,109 +127,91 @@ export function BookingDetailsForm({ client, offer }: BookingDetailsFormProps) {
         <div className="booking-success" role="status">
           <span aria-hidden="true">✓</span>
           <div>
-            <strong>Details received securely</strong>
-            <p>Your requested time was saved. No calendar event has been created yet.</p>
+            <strong>
+              {submissionResult?.status === "calendar_created"
+                ? "Demo appointment created"
+                : "Details received securely"}
+            </strong>
+            <p>
+              {submissionResult?.status === "calendar_created"
+                ? "Google has sent a calendar invitation to your email address."
+                : "Your requested time was saved. No calendar event has been created yet."}
+            </p>
           </div>
         </div>
       ) : (
         <form className="booking-form" onSubmit={handleSubmit}>
           <p className="booking-details__intro">
-            Confirm where service is needed and the time you want. Availability will be
-            checked in the next demo step—this form does not book an appointment yet.
+            Confirm where service is needed and the time you want.
+            {offer.calendarBookingEnabled
+              ? " Pick a free time and Google will email you a demo calendar invitation."
+              : " Availability will be checked in the next demo step—this form does not book an appointment yet."}
           </p>
 
           <div className="booking-form__grid">
             <label>
               Email address
-              <input
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                autoComplete="email"
-                maxLength={254}
-                required
-              />
+              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" maxLength={254} required />
             </label>
             <label>
               Street address
-              <input
-                type="text"
-                value={addressLine1}
-                onChange={(event) => setAddressLine1(event.target.value)}
-                autoComplete="address-line1"
-                minLength={5}
-                maxLength={200}
-                required
-              />
+              <input type="text" value={addressLine1} onChange={(event) => setAddressLine1(event.target.value)} autoComplete="address-line1" minLength={5} maxLength={200} required />
             </label>
             <label>
               City
-              <input
-                type="text"
-                value={city}
-                onChange={(event) => setCity(event.target.value)}
-                autoComplete="address-level2"
-                minLength={2}
-                maxLength={100}
-                required
-              />
+              <input type="text" value={city} onChange={(event) => setCity(event.target.value)} autoComplete="address-level2" minLength={2} maxLength={100} required />
             </label>
             <label>
               State
-              <input
-                type="text"
-                value={region}
-                onChange={(event) => setRegion(event.target.value.toUpperCase())}
-                autoComplete="address-level1"
-                pattern="[A-Za-z]{2}"
-                maxLength={2}
-                required
-              />
+              <input type="text" value={region} onChange={(event) => setRegion(event.target.value.toUpperCase())} autoComplete="address-level1" pattern="[A-Za-z]{2}" maxLength={2} required />
             </label>
             <label>
               ZIP code
-              <input
-                type="text"
-                inputMode="numeric"
-                value={postalCode}
-                onChange={(event) => setPostalCode(event.target.value.replace(/\D/g, "").slice(0, 5))}
-                autoComplete="postal-code"
-                pattern="[0-9]{5}"
-                maxLength={5}
-                required
-              />
+              <input type="text" inputMode="numeric" value={postalCode} onChange={(event) => setPostalCode(event.target.value.replace(/\D/g, "").slice(0, 5))} autoComplete="postal-code" pattern="[0-9]{5}" maxLength={5} required />
             </label>
             <label>
               Requested date
-              <input
-                type="date"
-                value={requestedDate}
-                onChange={(event) => setRequestedDate(event.target.value)}
-                min={dateRange.minimum}
-                max={dateRange.maximum}
-                required
-              />
+              <input type="date" value={requestedDate} onChange={(event) => handleDateChange(event.target.value)} min={dateRange.minimum} max={dateRange.maximum} required />
             </label>
-            <label>
-              Requested time
-              <input
-                type="time"
-                value={requestedTime}
-                onChange={(event) => setRequestedTime(event.target.value)}
-                min="08:00"
-                max="18:00"
-                step="1800"
-                required
-              />
-            </label>
+            {offer.calendarBookingEnabled ? (
+              <label>
+                Available time
+                <select
+                  value={requestedTime}
+                  onChange={(event) => setRequestedTime(event.target.value)}
+                  disabled={availabilityStatus !== "ready" || availableSlots.length === 0}
+                  required
+                >
+                  <option value="">
+                    {availabilityStatus === "loading"
+                      ? "Checking calendar…"
+                      : availableSlots.length === 0
+                        ? "No times available"
+                        : "Choose a time"}
+                  </option>
+                  {availableSlots.map((slot) => (
+                    <option value={slot.time} key={slot.time}>{slot.label}</option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <label>
+                Requested time
+                <input type="time" value={requestedTime} onChange={(event) => setRequestedTime(event.target.value)} min="08:00" max="17:00" step="1800" required />
+              </label>
+            )}
           </div>
 
           <p className="booking-timezone">Times use Austin time ({offer.timezone}).</p>
           {errorMessage ? <p className="form-error" role="alert">{errorMessage}</p> : null}
-          <button className="primary-button booking-submit" type="submit" disabled={status === "submitting"}>
+          <button
+            className="primary-button booking-submit"
+            type="submit"
+            disabled={status === "submitting" || (offer.calendarBookingEnabled && !requestedTime)}
+          >
             {status === "submitting" ? (
-              <><span className="button-spinner" aria-hidden="true" />Saving details…</>
-            ) : "Save my details"}
+              <><span className="button-spinner" aria-hidden="true" />Creating appointment…</>
+            ) : offer.calendarBookingEnabled ? "Create demo appointment" : "Save my details"}
           </button>
           <p className="booking-privacy">Your contact and address are kept private and are never shown in the public call result.</p>
         </form>

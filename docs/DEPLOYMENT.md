@@ -11,6 +11,7 @@ Complete these guides first:
 1. [Supabase setup](SUPABASE_SETUP.md)
 2. [Turnstile and abuse-protection setup](ABUSE_PROTECTION_SETUP.md)
 3. [Retell setup](../retell/SETUP.md)
+4. [Google Calendar booking setup](GOOGLE_CALENDAR_BOOKING_SETUP.md) when calendar booking is enabled
 
 Do not paste any private key into chat, GitHub source files, or a `VITE_*` setting.
 

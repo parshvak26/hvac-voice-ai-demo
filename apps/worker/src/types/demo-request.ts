@@ -136,9 +136,11 @@ export interface CreateBookingDetailsRecord {
   timezone: "America/Chicago";
   tokenExpiresAt: string;
   submittedAt: string;
+  status: "details_received" | "calendar_pending";
 }
 
 export type BookingDetailsSubmissionResult =
   | "created"
   | "already_submitted"
+  | "slot_unavailable"
   | "unavailable";

@@ -43,8 +43,25 @@ export interface BookingFormOffer {
   token: string;
   expiresAt: string;
   timezone: "America/Chicago";
+  calendarBookingEnabled: boolean;
   suggestedDate: string | null;
   suggestedTime: string | null;
+}
+
+export interface BookingAvailabilityRequest {
+  token: string;
+  requestedDate: string;
+}
+
+export interface BookingTimeSlot {
+  time: string;
+  label: string;
+}
+
+export interface BookingAvailabilityResponse {
+  requestedDate: string;
+  timezone: "America/Chicago";
+  slots: BookingTimeSlot[];
 }
 
 export interface SubmitBookingDetailsRequest {
@@ -59,7 +76,10 @@ export interface SubmitBookingDetailsRequest {
 }
 
 export interface SubmitBookingDetailsResponse {
-  status: "details_received";
+  status: "details_received" | "calendar_created";
+  startsAt?: string;
+  endsAt?: string;
+  timezone?: "America/Chicago";
 }
 
 export interface DemoResultResponse {
@@ -89,6 +109,7 @@ export type ApiErrorCode =
   | "booking_token_invalid"
   | "booking_token_expired"
   | "booking_already_submitted"
+  | "booking_slot_unavailable"
   | "invalid_webhook_signature"
   | "service_unavailable"
   | "internal_error";

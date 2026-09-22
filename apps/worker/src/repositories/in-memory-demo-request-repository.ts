@@ -16,11 +16,17 @@ import type {
 } from "../types/demo-request";
 import type { DemoRequestRepository } from "./demo-request-repository";
 
+type StoredBookingDetails = Omit<CreateBookingDetailsRecord, "status"> & {
+  status: "details_received" | "calendar_pending" | "calendar_created" | "failed";
+  calendarEventId?: string;
+  calendarErrorCode?: string;
+};
+
 export class InMemoryDemoRequestRepository implements DemoRequestRepository {
   private readonly requests = new Map<string, DemoRequestRecord>();
   private readonly calls = new Map<string, CallRecord>();
   private readonly webhookFingerprints = new Set<string>();
-  private readonly bookingDetails = new Map<string, CreateBookingDetailsRecord>();
+  private readonly bookingDetails = new Map<string, StoredBookingDetails>();
 
   async reserveDemoRequest(
     record: CreateDemoRequestRecord,
@@ -261,7 +267,47 @@ export class InMemoryDemoRequestRepository implements DemoRequestRepository {
     if (this.bookingDetails.has(record.demoRequestId)) {
       return "already_submitted";
     }
+    if (
+      record.status === "calendar_pending" &&
+      [...this.bookingDetails.values()].some((booking) =>
+        ["calendar_pending", "calendar_created"].includes(booking.status) &&
+        booking.requestedDate === record.requestedDate &&
+        booking.requestedTime === record.requestedTime &&
+        booking.timezone === record.timezone)
+    ) {
+      return "slot_unavailable";
+    }
     this.bookingDetails.set(record.demoRequestId, { ...record });
     return "created";
+  }
+
+  async markCalendarBookingCreated(
+    demoRequestId: string,
+    calendarEventId: string,
+    updatedAt: string,
+  ): Promise<void> {
+    void updatedAt;
+    const booking = this.bookingDetails.get(demoRequestId);
+    if (!booking || booking.status !== "calendar_pending") throw new Error("Booking not pending.");
+    this.bookingDetails.set(demoRequestId, {
+      ...booking,
+      status: "calendar_created",
+      calendarEventId,
+    });
+  }
+
+  async markCalendarBookingFailed(
+    demoRequestId: string,
+    errorCode: string,
+    updatedAt: string,
+  ): Promise<void> {
+    void updatedAt;
+    const booking = this.bookingDetails.get(demoRequestId);
+    if (!booking || booking.status !== "calendar_pending") return;
+    this.bookingDetails.set(demoRequestId, {
+      ...booking,
+      status: "failed",
+      calendarErrorCode: errorCode,
+    });
   }
 }

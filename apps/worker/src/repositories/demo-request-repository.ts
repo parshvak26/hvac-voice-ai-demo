@@ -33,4 +33,14 @@ export interface DemoRequestRepository {
   submitBookingDetails(
     record: CreateBookingDetailsRecord,
   ): Promise<BookingDetailsSubmissionResult>;
+  markCalendarBookingCreated(
+    demoRequestId: string,
+    calendarEventId: string,
+    updatedAt: string,
+  ): Promise<void>;
+  markCalendarBookingFailed(
+    demoRequestId: string,
+    errorCode: string,
+    updatedAt: string,
+  ): Promise<void>;
 }

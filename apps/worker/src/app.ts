@@ -1,4 +1,5 @@
 import type {
+  BookingAvailabilityResponse,
   CreateDemoCallResponse,
   DemoResultResponse,
   SubmitBookingDetailsResponse,
@@ -19,6 +20,12 @@ import {
   RetellUnavailableError,
 } from "./providers/retell-errors";
 import type { TurnstileVerifier } from "./providers/turnstile-verifier";
+import { createConfiguredCalendarClient } from "./providers/create-calendar-client";
+import {
+  CalendarConfigurationError,
+  CalendarUnavailableError,
+  type CalendarClient,
+} from "./providers/calendar-client";
 import {
   createRetellWebhookVerifier,
   RetellWebhookConfigurationError,
@@ -40,6 +47,14 @@ import {
   canCollectBookingDetails,
   createBookingFormOffer,
 } from "./services/booking-form-service";
+import {
+  addDays,
+  bookingTimezone,
+  createDailySlots,
+  eventLocalRange,
+  rangesOverlap,
+  slotRange,
+} from "./services/booking-schedule";
 import { BookingTokenService } from "./security/booking-token";
 import {
   createIdentifierHasher,
@@ -52,6 +67,7 @@ import {
   validateCreateDemoCallBody,
 } from "./validation/demo-call";
 import { validateBookingDetailsBody } from "./validation/booking-details";
+import { validateBookingAvailabilityBody } from "./validation/booking-availability";
 import {
   fingerprintWebhook,
   mapRetellWebhook,
@@ -69,6 +85,7 @@ export interface WorkerAppOptions {
   expectedRetellAgentId?: string;
   identifierHasher?: IdentifierHasher;
   bookingTokenService?: BookingTokenService;
+  calendarClient?: CalendarClient;
   now?: () => number;
 }
 
@@ -102,6 +119,8 @@ export function createWorkerApp(options: WorkerAppOptions = {}) {
     if (!env.HASH_SALT) throw new HashConfigurationError();
     return new BookingTokenService(env.HASH_SALT, options.now);
   };
+  const getCalendarClient = (env: WorkerEnv) =>
+    options.calendarClient ?? createConfiguredCalendarClient(env);
 
   return {
     async fetch(request: Request, env: WorkerEnv): Promise<Response> {
@@ -504,6 +523,86 @@ export function createWorkerApp(options: WorkerAppOptions = {}) {
         }
       }
 
+      if (url.pathname === "/api/booking-availability") {
+        if (request.method !== "POST") {
+          const response = errorResponse(405, "method_not_allowed", "Use POST for this route.");
+          response.headers.set("Allow", "POST, OPTIONS");
+          return withCors(response);
+        }
+        if (
+          env.DEMO_DETAILS_FORM_ENABLED !== "true" ||
+          env.DEMO_BOOKING_ENABLED !== "true"
+        ) {
+          return withCors(errorResponse(
+            404,
+            "booking_unavailable",
+            "Calendar booking is not available for this demo.",
+          ));
+        }
+        if (!(request.headers.get("Content-Type") ?? "").toLowerCase().includes("application/json")) {
+          return withCors(errorResponse(415, "invalid_content_type", "Send the request as application/json."));
+        }
+        let body: unknown;
+        try {
+          const rawBody = await request.text();
+          if (new TextEncoder().encode(rawBody).byteLength > maximumPayloadBytes) {
+            return withCors(errorResponse(413, "payload_too_large", "The request is too large."));
+          }
+          body = JSON.parse(rawBody) as unknown;
+        } catch {
+          return withCors(errorResponse(400, "invalid_request", "Send valid JSON."));
+        }
+        const now = (options.now ?? Date.now)();
+        const validation = validateBookingAvailabilityBody(body, now);
+        if (!validation.ok) {
+          return withCors(errorResponse(400, "invalid_request", validation.message));
+        }
+        try {
+          const tokenValidation = await getBookingTokenService(env).validate(validation.value.token);
+          if (!tokenValidation.ok) {
+            const expired = tokenValidation.reason === "expired";
+            return withCors(errorResponse(
+              expired ? 410 : 401,
+              expired ? "booking_token_expired" : "booking_token_invalid",
+              expired ? "This form has expired. Please run the demo again." : "This form link is invalid.",
+            ));
+          }
+          const repository = getRepository(env);
+          const aggregate = await repository.findByPublicToken(tokenValidation.publicToken);
+          if (!canCollectBookingDetails(aggregate)) {
+            return withCors(errorResponse(409, "booking_unavailable", "Booking is not available for this call."));
+          }
+          const dayStart = slotRange(validation.value.requestedDate, "00:00").start;
+          const nextDayStart = slotRange(addDays(validation.value.requestedDate, 1), "00:00").start;
+          const busy = await getCalendarClient(env).listBusy(dayStart, nextDayStart, bookingTimezone);
+          const slots = createDailySlots().filter((slot) => {
+            const range = slotRange(validation.value.requestedDate, slot.time);
+            return range.start.getTime() >= now + 15 * 60_000 &&
+              !busy.some((period) => rangesOverlap(range, period));
+          });
+          const response: BookingAvailabilityResponse = {
+            requestedDate: validation.value.requestedDate,
+            timezone: bookingTimezone,
+            slots,
+          };
+          return withCors(jsonResponse(response, 200));
+        } catch (error) {
+          const configurationError =
+            error instanceof CalendarConfigurationError ||
+            error instanceof HashConfigurationError ||
+            error instanceof PersistenceConfigurationError;
+          writeWorkerLog(env, "error", "booking_availability_failed", {
+            errorCategory: configurationError ? "configuration" : "provider",
+            httpStatus: 503,
+          });
+          return withCors(errorResponse(
+            503,
+            "service_unavailable",
+            "Appointment availability is temporarily unavailable.",
+          ));
+        }
+      }
+
       if (url.pathname === "/api/booking-details") {
         if (request.method !== "POST") {
           const response = errorResponse(
@@ -587,6 +686,25 @@ export function createWorkerApp(options: WorkerAppOptions = {}) {
               ),
             );
           }
+          const calendarBookingEnabled = env.DEMO_BOOKING_ENABLED === "true";
+          const selectedRange = slotRange(
+            validation.value.requestedDate,
+            validation.value.requestedTime,
+          );
+          if (calendarBookingEnabled) {
+            const busy = await getCalendarClient(env).listBusy(
+              selectedRange.start,
+              selectedRange.end,
+              bookingTimezone,
+            );
+            if (busy.some((period) => rangesOverlap(selectedRange, period))) {
+              return withCors(errorResponse(
+                409,
+                "booking_slot_unavailable",
+                "That time was just taken. Please choose another available time.",
+              ));
+            }
+          }
           const submissionResult = await repository.submitBookingDetails({
             demoRequestId: aggregate.request.id,
             email: validation.value.email,
@@ -596,9 +714,10 @@ export function createWorkerApp(options: WorkerAppOptions = {}) {
             postalCode: validation.value.postalCode,
             requestedDate: validation.value.requestedDate,
             requestedTime: validation.value.requestedTime,
-            timezone: "America/Chicago",
+            timezone: bookingTimezone,
             tokenExpiresAt: tokenValidation.expiresAt,
             submittedAt: new Date(now).toISOString(),
+            status: calendarBookingEnabled ? "calendar_pending" : "details_received",
           });
           if (submissionResult === "already_submitted") {
             return withCors(
@@ -610,6 +729,13 @@ export function createWorkerApp(options: WorkerAppOptions = {}) {
             );
           }
           if (submissionResult !== "created") {
+            if (submissionResult === "slot_unavailable") {
+              return withCors(errorResponse(
+                409,
+                "booking_slot_unavailable",
+                "That time was just taken. Please choose another available time.",
+              ));
+            }
             return withCors(
               errorResponse(
                 409,
@@ -617,6 +743,57 @@ export function createWorkerApp(options: WorkerAppOptions = {}) {
                 "Details cannot be collected for this call.",
               ),
             );
+          }
+          if (calendarBookingEnabled) {
+            const localRange = eventLocalRange(
+              validation.value.requestedDate,
+              validation.value.requestedTime,
+            );
+            const eventId = `hvacdemo${aggregate.request.id.replaceAll("-", "")}`;
+            let createdEvent: { eventId: string };
+            try {
+              createdEvent = await getCalendarClient(env).createEvent({
+                eventId,
+                summary: `${env.DEMO_COMPANY_NAME} — Demo appointment`,
+                description: [
+                  "Voice AI demo appointment — no real HVAC service will be dispatched.",
+                  `Issue: ${aggregate.call.analysis?.summary ?? "HVAC service request"}`,
+                  `Requested through the ${env.DEMO_COMPANY_NAME} voice AI demo.`,
+                ].join("\n\n"),
+                location: `${validation.value.addressLine1}, ${validation.value.city}, ${validation.value.region} ${validation.value.postalCode}`,
+                attendeeEmail: validation.value.email,
+                startLocal: localRange.start,
+                endLocal: localRange.end,
+                timezone: bookingTimezone,
+              });
+            } catch (error) {
+              try {
+                await repository.markCalendarBookingFailed(
+                  aggregate.request.id,
+                  error instanceof CalendarUnavailableError ? error.operation : "unknown",
+                  new Date((options.now ?? Date.now)()).toISOString(),
+                );
+              } catch {
+                // The pending reservation remains in place rather than risk double-booking.
+              }
+              throw error;
+            }
+            await repository.markCalendarBookingCreated(
+              aggregate.request.id,
+              createdEvent.eventId,
+              new Date((options.now ?? Date.now)()).toISOString(),
+            );
+            writeWorkerLog(env, "info", "calendar_booking_created", {
+              requestId: tokenValidation.publicToken,
+              status: "calendar_created",
+            });
+            const response: SubmitBookingDetailsResponse = {
+              status: "calendar_created",
+              startsAt: selectedRange.start.toISOString(),
+              endsAt: selectedRange.end.toISOString(),
+              timezone: bookingTimezone,
+            };
+            return withCors(jsonResponse(response, 201));
           }
           writeWorkerLog(env, "info", "booking_details_received", {
             requestId: tokenValidation.publicToken,
@@ -627,7 +804,8 @@ export function createWorkerApp(options: WorkerAppOptions = {}) {
         } catch (error) {
           if (
             error instanceof HashConfigurationError ||
-            error instanceof PersistenceConfigurationError
+            error instanceof PersistenceConfigurationError ||
+            error instanceof CalendarConfigurationError
           ) {
             writeWorkerLog(env, "error", "booking_details_failed", {
               errorCategory: "configuration",
@@ -640,6 +818,12 @@ export function createWorkerApp(options: WorkerAppOptions = {}) {
               result: error.code
                 ? `${error.operation}:${error.code}`
                 : error.operation,
+            });
+          } else if (error instanceof CalendarUnavailableError) {
+            writeWorkerLog(env, "error", "booking_details_failed", {
+              errorCategory: "calendar_provider",
+              httpStatus: 503,
+              result: error.operation,
             });
           } else {
             writeWorkerLog(env, "error", "booking_details_failed", {
@@ -703,7 +887,15 @@ export function createWorkerApp(options: WorkerAppOptions = {}) {
                   (options.now ?? Date.now)(),
                 )
               : null;
-            if (bookingForm) result = { ...result, bookingForm };
+            if (bookingForm) {
+              result = {
+                ...result,
+                bookingForm: {
+                  ...bookingForm,
+                  calendarBookingEnabled: env.DEMO_BOOKING_ENABLED === "true",
+                },
+              };
+            }
           }
         } catch (error) {
           if (

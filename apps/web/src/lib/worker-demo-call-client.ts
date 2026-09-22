@@ -1,5 +1,7 @@
 import type {
   ApiErrorResponse,
+  BookingAvailabilityRequest,
+  BookingAvailabilityResponse,
   BookingFormOffer,
   CreateDemoCallRequest,
   CreateDemoCallResponse,
@@ -175,6 +177,9 @@ function readApiError(value: unknown, status: number, headers?: Headers): Error 
   if (code === "booking_already_submitted") {
     return new Error("Details were already submitted for this call.");
   }
+  if (code === "booking_slot_unavailable") {
+    return new Error("That time was just taken. Please choose another available time.");
+  }
   if (code === "booking_unavailable") {
     return new Error("The details form is not available for this call.");
   }
@@ -291,6 +296,7 @@ function parseBookingForm(value: unknown): BookingFormOffer | null {
     typeof value.expiresAt !== "string" ||
     !Number.isFinite(Date.parse(value.expiresAt)) ||
     value.timezone !== "America/Chicago" ||
+    typeof value.calendarBookingEnabled !== "boolean" ||
     !(value.suggestedDate === null || (
       typeof value.suggestedDate === "string" && isValidIsoDate(value.suggestedDate)
     )) ||
@@ -577,10 +583,70 @@ export class WorkerDemoCallClient implements DemoCallClient {
     if (!response.ok) {
       throw readApiError(responseBody, response.status, response.headers);
     }
-    if (!isRecord(responseBody) || responseBody.status !== "details_received") {
+    if (
+      !isRecord(responseBody) ||
+      !["details_received", "calendar_created"].includes(String(responseBody.status))
+    ) {
       throw new Error("The demo service returned an invalid response.");
     }
-    return { status: "details_received" };
+    if (responseBody.status === "details_received") return { status: "details_received" };
+    if (
+      typeof responseBody.startsAt !== "string" ||
+      !Number.isFinite(Date.parse(responseBody.startsAt)) ||
+      typeof responseBody.endsAt !== "string" ||
+      !Number.isFinite(Date.parse(responseBody.endsAt)) ||
+      responseBody.timezone !== "America/Chicago"
+    ) {
+      throw new Error("The demo service returned an invalid response.");
+    }
+    return {
+      status: "calendar_created",
+      startsAt: responseBody.startsAt,
+      endsAt: responseBody.endsAt,
+      timezone: responseBody.timezone,
+    };
+  }
+
+  async getBookingAvailability(
+    body: BookingAvailabilityRequest,
+  ): Promise<BookingAvailabilityResponse> {
+    let response: Response;
+    try {
+      response = await this.request(`${this.apiOrigin}/api/booking-availability`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    } catch {
+      throw new Error("The demo service could not be reached. Please try again.");
+    }
+    const responseBody = await readJson(response);
+    if (!response.ok) throw readApiError(responseBody, response.status, response.headers);
+    if (
+      !isRecord(responseBody) ||
+      responseBody.requestedDate !== body.requestedDate ||
+      responseBody.timezone !== "America/Chicago" ||
+      !Array.isArray(responseBody.slots)
+    ) {
+      throw new Error("The demo service returned invalid availability.");
+    }
+    const slots = responseBody.slots.flatMap((slot) =>
+      isRecord(slot) &&
+      typeof slot.time === "string" &&
+      /^(?:0[89]|1[0-7]):(?:00|30)$/.test(slot.time) &&
+      typeof slot.label === "string" &&
+      slot.label.length <= 20
+        ? [{ time: slot.time, label: slot.label }]
+        : [],
+    );
+    if (slots.length !== responseBody.slots.length) {
+      throw new Error("The demo service returned invalid availability.");
+    }
+    return {
+      requestedDate: body.requestedDate,
+      timezone: "America/Chicago",
+      slots,
+    };
   }
 }
 
@@ -592,6 +658,10 @@ export class UnconfiguredDemoCallClient implements DemoCallClient {
   }
 
   async submitBookingDetails(): Promise<SubmitBookingDetailsResponse> {
+    throw new Error("Live calling is not configured yet.");
+  }
+
+  async getBookingAvailability(): Promise<BookingAvailabilityResponse> {
     throw new Error("Live calling is not configured yet.");
   }
 

@@ -1,10 +1,10 @@
 # Implementation Status
 
-Last updated: September 8, 2026
+Last updated: September 22, 2026
 
 ## Current milestone
 
-Phase A milestones 0 through 7 are complete. V2 Milestone 2 adds a secure post-call details form for qualified calls, signed one-hour tokens, one submission per call, and private Supabase storage. Google Calendar availability and event creation remain off until the next milestone. India is supported alongside the original US scope; Indian input must include `+91`.
+Phase A milestones 0 through 7 are complete. V2 now includes the secure post-call form plus Google Calendar availability, one-hour private demo events, attendee email invitations, and database protection against double-booking. Calendar booking code is complete but remains disabled in production until the Google OAuth credentials and `20260922000100_enable_calendar_booking.sql` migration are installed. India is supported alongside the original US scope; Indian input must include `+91`.
 
 ## Repository state
 
