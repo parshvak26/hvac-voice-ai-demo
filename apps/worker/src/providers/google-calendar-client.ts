@@ -42,7 +42,7 @@ export class GoogleCalendarClient implements CalendarClient {
   private token: CachedToken | null = null;
 
   constructor(private readonly options: GoogleCalendarClientOptions) {
-    this.request = options.request ?? fetch;
+    this.request = options.request ?? ((input, init) => fetch(input, init));
     this.now = options.now ?? Date.now;
   }
 
@@ -58,7 +58,7 @@ export class GoogleCalendarClient implements CalendarClient {
           client_secret: this.options.clientSecret,
           refresh_token: this.options.refreshToken,
           grant_type: "refresh_token",
-        }),
+        }).toString(),
       });
     } catch {
       throw new CalendarUnavailableError("authorize", "network_error");
