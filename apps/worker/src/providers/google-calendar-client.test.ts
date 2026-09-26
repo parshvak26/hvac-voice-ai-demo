@@ -2,6 +2,31 @@ import { describe, expect, it, vi } from "vitest";
 import { GoogleCalendarClient } from "./google-calendar-client";
 
 describe("GoogleCalendarClient", () => {
+  it("reports a safe OAuth error code without exposing provider details", async () => {
+    const request = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      new Response(JSON.stringify({
+        error: "invalid_grant",
+        error_description: "sensitive provider detail",
+      }), { status: 400 }),
+    );
+    const client = new GoogleCalendarClient({
+      calendarId: "demo-calendar@example.com",
+      clientId: "client-id",
+      clientSecret: "client-secret",
+      refreshToken: "refresh-token",
+      request,
+    });
+
+    await expect(client.listBusy(
+      new Date("2026-09-23T05:00:00.000Z"),
+      new Date("2026-09-24T05:00:00.000Z"),
+      "America/Chicago",
+    )).rejects.toMatchObject({
+      operation: "authorize",
+      reason: "invalid_grant",
+    });
+  });
+
   it("reads free/busy data with a refreshed OAuth token", async () => {
     const request = vi.fn<typeof fetch>()
       .mockResolvedValueOnce(new Response(JSON.stringify({

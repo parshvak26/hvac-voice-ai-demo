@@ -27,7 +27,10 @@ export class CalendarConfigurationError extends Error {
 }
 
 export class CalendarUnavailableError extends Error {
-  constructor(readonly operation: "authorize" | "availability" | "create_event") {
+  constructor(
+    readonly operation: "authorize" | "availability" | "create_event",
+    readonly reason?: string,
+  ) {
     super(`Google Calendar is unavailable during ${operation}.`);
     this.name = "CalendarUnavailableError";
   }

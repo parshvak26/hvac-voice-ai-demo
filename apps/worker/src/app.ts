@@ -596,7 +596,7 @@ export function createWorkerApp(options: WorkerAppOptions = {}) {
             httpStatus: 503,
             result:
               error instanceof CalendarUnavailableError
-                ? error.operation
+                ? `${error.operation}:${error.reason ?? "unknown"}`
                 : undefined,
           });
           return withCors(errorResponse(

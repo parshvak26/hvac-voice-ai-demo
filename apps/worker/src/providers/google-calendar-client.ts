@@ -23,6 +23,19 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function safeProviderReason(body: unknown, status: number): string {
+  if (isRecord(body) && typeof body.error === "string") {
+    const allowed = new Set([
+      "access_denied",
+      "invalid_client",
+      "invalid_grant",
+      "unauthorized_client",
+    ]);
+    if (allowed.has(body.error)) return body.error;
+  }
+  return `http_${status}`;
+}
+
 export class GoogleCalendarClient implements CalendarClient {
   private readonly request: typeof fetch;
   private readonly now: () => number;
@@ -48,11 +61,14 @@ export class GoogleCalendarClient implements CalendarClient {
         }),
       });
     } catch {
-      throw new CalendarUnavailableError("authorize");
+      throw new CalendarUnavailableError("authorize", "network_error");
     }
     const body: unknown = await response.json().catch(() => null);
     if (!response.ok || !isRecord(body) || typeof body.access_token !== "string") {
-      throw new CalendarUnavailableError("authorize");
+      throw new CalendarUnavailableError(
+        "authorize",
+        safeProviderReason(body, response.status),
+      );
     }
     const expiresIn = typeof body.expires_in === "number" && body.expires_in > 0
       ? body.expires_in
@@ -86,11 +102,11 @@ export class GoogleCalendarClient implements CalendarClient {
         }),
       });
     } catch {
-      throw new CalendarUnavailableError("availability");
+      throw new CalendarUnavailableError("availability", "network_error");
     }
     const body: unknown = await response.json().catch(() => null);
     if (!response.ok || !isRecord(body) || !isRecord(body.calendars)) {
-      throw new CalendarUnavailableError("availability");
+      throw new CalendarUnavailableError("availability", safeProviderReason(body, response.status));
     }
     const calendar = body.calendars[this.options.calendarId];
     if (
@@ -98,12 +114,12 @@ export class GoogleCalendarClient implements CalendarClient {
       !Array.isArray(calendar.busy) ||
       (Array.isArray(calendar.errors) && calendar.errors.length > 0)
     ) {
-      throw new CalendarUnavailableError("availability");
+      throw new CalendarUnavailableError("availability", "invalid_response");
     }
     const periods: CalendarBusyPeriod[] = [];
     for (const period of calendar.busy) {
       if (!isRecord(period) || typeof period.start !== "string" || typeof period.end !== "string") {
-        throw new CalendarUnavailableError("availability");
+        throw new CalendarUnavailableError("availability", "invalid_response");
       }
       periods.push({ start: period.start, end: period.end });
     }
@@ -138,11 +154,14 @@ export class GoogleCalendarClient implements CalendarClient {
         }),
       });
     } catch {
-      throw new CalendarUnavailableError("create_event");
+      throw new CalendarUnavailableError("create_event", "network_error");
     }
     const body: unknown = await response.json().catch(() => null);
     if (!response.ok || !isRecord(body) || typeof body.id !== "string") {
-      throw new CalendarUnavailableError("create_event");
+      throw new CalendarUnavailableError(
+        "create_event",
+        safeProviderReason(body, response.status),
+      );
     }
     return { eventId: body.id };
   }
