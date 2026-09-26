@@ -594,6 +594,10 @@ export function createWorkerApp(options: WorkerAppOptions = {}) {
           writeWorkerLog(env, "error", "booking_availability_failed", {
             errorCategory: configurationError ? "configuration" : "provider",
             httpStatus: 503,
+            result:
+              error instanceof CalendarUnavailableError
+                ? error.operation
+                : undefined,
           });
           return withCors(errorResponse(
             503,
