@@ -46,7 +46,7 @@ Open [Google OAuth 2.0 Playground](https://developers.google.com/oauthplayground
 3. Enter the Client ID and Client Secret.
 4. In the scope box, enter both scopes:
 
-   `https://www.googleapis.com/auth/calendar.events`
+   `https://www.googleapis.com/auth/calendar.events.owned`
 
    `https://www.googleapis.com/auth/calendar.events.freebusy`
 
