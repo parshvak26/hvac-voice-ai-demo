@@ -956,6 +956,20 @@ select:disabled {
   width: min(100%, 320px);
 }
 
+.booking-retry {
+  display: block;
+  margin: -8px 0 18px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .booking-privacy {
   margin: 10px 0 0;
 }

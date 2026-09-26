@@ -39,6 +39,7 @@ export function BookingDetailsForm({ client, offer }: BookingDetailsFormProps) {
   const [availabilityStatus, setAvailabilityStatus] = useState<"idle" | "loading" | "ready" | "failed">(
     offer.calendarBookingEnabled && offer.suggestedDate ? "loading" : "idle",
   );
+  const [availabilityAttempt, setAvailabilityAttempt] = useState(0);
   const [availableSlots, setAvailableSlots] = useState<BookingTimeSlot[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [dateRange] = useState(dateRangeInAustin);
@@ -77,7 +78,14 @@ export function BookingDetailsForm({ client, offer }: BookingDetailsFormProps) {
       );
     });
     return () => { cancelled = true; };
-  }, [client, offer.calendarBookingEnabled, offer.suggestedTime, offer.token, requestedDate]);
+  }, [
+    availabilityAttempt,
+    client,
+    offer.calendarBookingEnabled,
+    offer.suggestedTime,
+    offer.token,
+    requestedDate,
+  ]);
 
   const handleDateChange = (value: string) => {
     setRequestedDate(value);
@@ -86,6 +94,14 @@ export function BookingDetailsForm({ client, offer }: BookingDetailsFormProps) {
     setAvailableSlots([]);
     setErrorMessage("");
     setAvailabilityStatus(value ? "loading" : "idle");
+  };
+
+  const retryAvailability = () => {
+    setRequestedTime("");
+    setAvailableSlots([]);
+    setErrorMessage("");
+    setAvailabilityStatus("loading");
+    setAvailabilityAttempt((attempt) => attempt + 1);
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -204,6 +220,11 @@ export function BookingDetailsForm({ client, offer }: BookingDetailsFormProps) {
 
           <p className="booking-timezone">Times use Austin time ({offer.timezone}).</p>
           {errorMessage ? <p className="form-error" role="alert">{errorMessage}</p> : null}
+          {offer.calendarBookingEnabled && availabilityStatus === "failed" ? (
+            <button className="booking-retry" type="button" onClick={retryAvailability}>
+              Try loading times again
+            </button>
+          ) : null}
           <button
             className="primary-button booking-submit"
             type="submit"
