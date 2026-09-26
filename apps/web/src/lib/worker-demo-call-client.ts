@@ -368,7 +368,8 @@ export class WorkerDemoCallClient implements DemoCallClient {
 
   constructor(apiOrigin: string, options: WorkerDemoCallClientOptions = {}) {
     this.apiOrigin = normalizeApiOrigin(apiOrigin);
-    this.request = options.request ?? fetch;
+    const request = options.request ?? fetch;
+    this.request = (input, init) => request(input, init);
     this.sleep = options.sleep ?? defaultSleep;
     this.now = options.now ?? Date.now;
     this.pollIntervalMilliseconds = options.pollIntervalMilliseconds ?? 2_000;

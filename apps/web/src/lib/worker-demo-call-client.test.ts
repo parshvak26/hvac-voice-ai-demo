@@ -383,6 +383,25 @@ describe("WorkerDemoCallClient", () => {
     });
   });
 
+  it("calls browser fetch without binding it to the client instance", async () => {
+    const receiverSensitiveRequest = function (this: unknown) {
+      if (this !== undefined) throw new TypeError("Illegal invocation");
+      return Promise.resolve(new Response(JSON.stringify({
+        requestedDate: "2027-01-16",
+        timezone: "America/Chicago",
+        slots: [{ time: "15:00", label: "3:00 PM" }],
+      }), { status: 200 }));
+    } as typeof fetch;
+    const client = new WorkerDemoCallClient("https://api.example.test", {
+      request: receiverSensitiveRequest,
+    });
+
+    await expect(client.getBookingAvailability({
+      token: "secure-token",
+      requestedDate: "2027-01-16",
+    })).resolves.toMatchObject({ slots: [{ time: "15:00", label: "3:00 PM" }] });
+  });
+
   it("shows a useful message when the secure form expires", async () => {
     const client = new WorkerDemoCallClient("https://api.example.test", {
       request: async () => new Response(JSON.stringify({
