@@ -56,6 +56,7 @@ export function DemoCallForm({
   const aiConsentRef = useRef<HTMLInputElement>(null);
   const recordingConsentRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const callInFlightRef = useRef(false);
   const phoneErrorId = useId();
   const consentErrorId = useId();
   const isBusy = busyStatuses.includes(status);
@@ -78,6 +79,11 @@ export function DemoCallForm({
     outcome: MockOutcome,
     verificationToken: string,
   ) => {
+    // A rapid double click can otherwise abort the first accepted request and
+    // spend the one-time Turnstile token on a duplicate. The phone call may be
+    // created while the browser loses the request ID needed for post-call recovery.
+    if (callInFlightRef.current) return "submitting" as const;
+
     setPhoneError("");
     setConsentError("");
     setVerificationError("");
@@ -103,8 +109,8 @@ export function DemoCallForm({
       return "verification_pending" as const;
     }
 
+    callInFlightRef.current = true;
     setPhoneNumber(phone.display);
-    abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
 
@@ -142,6 +148,11 @@ export function DemoCallForm({
       setTurnstileToken("");
       setVerificationKey((current) => current + 1);
       return failureStatus;
+    } finally {
+      if (abortRef.current === controller) {
+        abortRef.current = null;
+        callInFlightRef.current = false;
+      }
     }
   }, [client, focusMissingConsent, onComplete, onStatusChange]);
 

@@ -28,7 +28,7 @@ Use this as a starting point, then change one setting at a time and run `retell/
 - Transcription mode: Accurate.
 - Denoising: Remove noise for normal calls. Compare No denoising in a quiet room if short or soft words are dropped.
 - Response wait time: 450 milliseconds. This is fast enough to feel responsive while leaving a small buffer for natural pauses.
-- Interruption sensitivity: 0.85. Test with genuine interruptions and background noise; lower it slightly only if ordinary room noise repeatedly cuts Sarah off.
+- Interruption sensitivity: 0.95. This was raised after a real V12 phone test still showed Sarah continuing through short, clear interruptions. Lower it slightly only if ordinary room noise repeatedly cuts Sarah off.
 - Backchanneling: Off while debugging turn-taking.
 - Background ambience: Off while debugging transcription.
 - Voice speed: around 0.95 to 1.0.
