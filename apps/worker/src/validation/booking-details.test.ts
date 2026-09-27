@@ -25,6 +25,12 @@ describe("validateBookingDetailsBody", () => {
     });
   });
 
+  it("accepts a 7 PM appointment and rejects a start at closing time", () => {
+    expect(validateBookingDetailsBody({ ...validBody, requestedTime: "19:00" }, now).ok).toBe(true);
+    expect(validateBookingDetailsBody({ ...validBody, requestedTime: "20:30" }, now).ok).toBe(false);
+    expect(validateBookingDetailsBody({ ...validBody, requestedTime: "21:00" }, now).ok).toBe(false);
+  });
+
   it.each([
     ["email", "not-an-email"],
     ["postalCode", "7870"],

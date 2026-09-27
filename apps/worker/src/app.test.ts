@@ -175,7 +175,7 @@ describe("worker routes", () => {
           region: "TX",
           postalCode: "78701",
           requestedDate: "2026-09-09",
-          requestedTime: "15:00",
+          requestedTime: "19:00",
         }),
       },
     );
@@ -240,6 +240,8 @@ describe("worker routes", () => {
     const availabilityBody = await availability.json<{ slots: Array<{ time: string }> }>();
     expect(availability.status).toBe(200);
     expect(availabilityBody.slots.some((slot) => slot.time === "15:00")).toBe(true);
+    expect(availabilityBody.slots.some((slot) => slot.time === "19:00")).toBe(true);
+    expect(availabilityBody.slots.some((slot) => slot.time === "21:00")).toBe(false);
 
     const submitted = await app.fetch(new Request(
       "http://localhost:8787/api/booking-details",
@@ -254,20 +256,20 @@ describe("worker routes", () => {
           region: "TX",
           postalCode: "78701",
           requestedDate: "2026-09-09",
-          requestedTime: "15:00",
+          requestedTime: "19:00",
         }),
       },
     ), calendarEnv);
     expect(submitted.status).toBe(201);
     await expect(submitted.json()).resolves.toEqual({
       status: "calendar_created",
-      startsAt: "2026-09-09T20:00:00.000Z",
-      endsAt: "2026-09-09T21:00:00.000Z",
+      startsAt: "2026-09-10T00:00:00.000Z",
+      endsAt: "2026-09-10T01:00:00.000Z",
       timezone: "America/Chicago",
     });
     expect(createdEvents).toEqual([{
       attendeeEmail: "customer@example.com",
-      startLocal: "2026-09-09T15:00:00",
+      startLocal: "2026-09-09T19:00:00",
       eventId: expect.stringMatching(/^hvacdemo[0-9a-f]{32}$/),
     }]);
   });

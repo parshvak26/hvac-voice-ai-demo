@@ -130,19 +130,30 @@ Expected behavior:
 - Keeps 5 PM as `17:00` in the structured result.
 - Produces `high` timing confidence only after both parts are clear.
 
-## Test 11: Ambiguous hour
+## Test 11: Hour with one valid interpretation
 
 Say:
 
-“Friday at five.”
+“Friday at seven.”
 
 Expected behavior:
 
-- Asks whether five means AM or PM.
-- Does not silently choose PM.
+- Uses 7 PM because 7 AM is outside the 8 AM to 9 PM service hours.
+- Says 7 PM explicitly in the recap without asking an unnecessary AM/PM question.
+- Keeps the date tied to the current Austin calendar.
+
+## Test 12: Hour with two valid interpretations
+
+Say:
+
+“Friday at eight.”
+
+Expected behavior:
+
+- Asks whether eight means 8 AM or 8 PM.
 - Keeps booking eligibility false until the caller confirms.
 
-## Test 12: Booking feature flag is off
+## Test 13: Booking feature flag is off
 
 Complete a normal call while `DEMO_BOOKING_ENABLED=false`.
 

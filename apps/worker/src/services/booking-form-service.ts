@@ -3,7 +3,7 @@ import type { BookingTokenService } from "../security/booking-token";
 import type { DemoRequestAggregate } from "../types/demo-request";
 
 const datePattern = /^\d{4}-(0[1-9]|1[0-2])-([0-2]\d|3[01])$/;
-const timePattern = /^(?:0[89]|1[0-7]):(?:00|30)$|^18:00$/;
+const timePattern = /^(?:0[89]|1\d):(?:00|30)$|^20:00$/;
 
 function localDate(now: number): string {
   const parts = new Intl.DateTimeFormat("en-US", {

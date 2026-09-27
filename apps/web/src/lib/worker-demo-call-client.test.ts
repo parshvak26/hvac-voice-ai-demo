@@ -381,12 +381,12 @@ describe("WorkerDemoCallClient", () => {
           ? new Response(JSON.stringify({
               requestedDate: "2027-01-16",
               timezone: "America/Chicago",
-              slots: [{ time: "15:00", label: "3:00 PM" }],
+              slots: [{ time: "19:00", label: "7:00 PM" }],
             }), { status: 200 })
           : new Response(JSON.stringify({
               status: "calendar_created",
-              startsAt: "2027-01-16T21:00:00.000Z",
-              endsAt: "2027-01-16T22:00:00.000Z",
+              startsAt: "2027-01-17T01:00:00.000Z",
+              endsAt: "2027-01-17T02:00:00.000Z",
               timezone: "America/Chicago",
             }), { status: 201 });
       },
@@ -395,7 +395,7 @@ describe("WorkerDemoCallClient", () => {
     await expect(client.getBookingAvailability({
       token: "secure-token",
       requestedDate: "2027-01-16",
-    })).resolves.toMatchObject({ slots: [{ time: "15:00", label: "3:00 PM" }] });
+    })).resolves.toMatchObject({ slots: [{ time: "19:00", label: "7:00 PM" }] });
     await expect(client.submitBookingDetails({
       token: "secure-token",
       email: "customer@example.com",
@@ -404,11 +404,11 @@ describe("WorkerDemoCallClient", () => {
       region: "TX",
       postalCode: "78701",
       requestedDate: "2027-01-16",
-      requestedTime: "15:00",
+      requestedTime: "19:00",
     })).resolves.toEqual({
       status: "calendar_created",
-      startsAt: "2027-01-16T21:00:00.000Z",
-      endsAt: "2027-01-16T22:00:00.000Z",
+      startsAt: "2027-01-17T01:00:00.000Z",
+      endsAt: "2027-01-17T02:00:00.000Z",
       timezone: "America/Chicago",
     });
   });

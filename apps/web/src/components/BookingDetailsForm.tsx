@@ -213,12 +213,12 @@ export function BookingDetailsForm({ client, offer }: BookingDetailsFormProps) {
             ) : (
               <label>
                 Requested time
-                <input type="time" value={requestedTime} onChange={(event) => setRequestedTime(event.target.value)} min="08:00" max="17:00" step="1800" required />
+                <input type="time" value={requestedTime} onChange={(event) => setRequestedTime(event.target.value)} min="08:00" max="20:00" step="1800" required />
               </label>
             )}
           </div>
 
-          <p className="booking-timezone">Times use Austin time ({offer.timezone}).</p>
+          <p className="booking-timezone">Times use Austin time ({offer.timezone}). Service hours are 8 AM–9 PM; one-hour demo appointments start through 8 PM.</p>
           {errorMessage ? <p className="form-error" role="alert">{errorMessage}</p> : null}
           {offer.calendarBookingEnabled && availabilityStatus === "failed" ? (
             <button className="booking-retry" type="button" onClick={retryAvailability}>

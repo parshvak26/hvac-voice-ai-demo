@@ -637,7 +637,7 @@ export class WorkerDemoCallClient implements DemoCallClient {
     const slots = responseBody.slots.flatMap((slot) =>
       isRecord(slot) &&
       typeof slot.time === "string" &&
-      /^(?:0[89]|1[0-7]):(?:00|30)$/.test(slot.time) &&
+      /^(?:0[89]|1\d):(?:00|30)$|^20:00$/.test(slot.time) &&
       typeof slot.label === "string" &&
       slot.label.length <= 20
         ? [{ time: slot.time, label: slot.label }]

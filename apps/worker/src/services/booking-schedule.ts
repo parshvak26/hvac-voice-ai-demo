@@ -4,7 +4,8 @@ export const bookingTimezone = "America/Chicago" as const;
 export const bookingDurationMinutes = 60;
 
 const datePattern = /^\d{4}-(0[1-9]|1[0-2])-([0-2]\d|3[01])$/;
-const slotTimePattern = /^(?:0[89]|1[0-7]):(?:00|30)$/;
+// One-hour appointments must finish by the 9 PM service closing time.
+const slotTimePattern = /^(?:0[89]|1\d):(?:00|30)$|^20:00$/;
 
 export function isRealDate(value: string): boolean {
   if (!datePattern.test(value)) return false;
@@ -43,7 +44,7 @@ export function isBookableTime(value: string): boolean {
 
 export function createDailySlots(): BookingTimeSlot[] {
   const slots: BookingTimeSlot[] = [];
-  for (let minutes = 8 * 60; minutes <= 17 * 60; minutes += 30) {
+  for (let minutes = 8 * 60; minutes <= 20 * 60; minutes += 30) {
     const hour = Math.floor(minutes / 60);
     const minute = minutes % 60;
     const time = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;

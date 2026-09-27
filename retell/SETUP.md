@@ -116,7 +116,7 @@ In the agent's post-call analysis settings, add these custom fields:
 Use these instructions for the four scheduling fields:
 
 - `preferred_date`: Resolve relative wording from Retell's `current_time_America/Chicago` and `current_calendar_America/Chicago` variables. Return only a real `YYYY-MM-DD` date. Leave it empty if the day is unclear.
-- `preferred_time`: Return only `HH:mm` in Austin local time. Leave it empty if AM/PM or the exact time is unclear.
+- `preferred_time`: Return only `HH:mm` in Austin local time. Infer AM/PM only when the service hours (8 AM to 9 PM, with the last one-hour appointment starting at 8 PM) leave one valid interpretation; otherwise leave it empty until the caller clarifies.
 - `preferred_time_confidence`: Use `high` only when both date and time were explicitly stated or clearly confirmed by the caller. Use `medium` when one part is reasonably inferred, and `low` when timing is broad, conflicting, or missing.
 - `booking_eligible`: Set to `true` only when the caller wants an appointment, is a qualified lead, did not request a human, the call is not an emergency, and both date and time are exact with `high` confidence. Otherwise set it to `false`.
 

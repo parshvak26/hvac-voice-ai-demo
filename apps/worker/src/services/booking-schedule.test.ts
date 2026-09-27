@@ -10,12 +10,13 @@ import {
 describe("booking schedule", () => {
   it("creates one-hour slots within Austin business hours", () => {
     const slots = createDailySlots();
-    expect(slots).toHaveLength(19);
+    expect(slots).toHaveLength(25);
     expect(slots[0]).toEqual({ time: "08:00", label: "8:00 AM" });
-    expect(slots.at(-1)).toEqual({ time: "17:00", label: "5:00 PM" });
-    expect(eventLocalRange("2026-09-23", "17:00")).toEqual({
-      start: "2026-09-23T17:00:00",
-      end: "2026-09-23T18:00:00",
+    expect(slots).toContainEqual({ time: "19:00", label: "7:00 PM" });
+    expect(slots.at(-1)).toEqual({ time: "20:00", label: "8:00 PM" });
+    expect(eventLocalRange("2026-09-23", "20:00")).toEqual({
+      start: "2026-09-23T20:00:00",
+      end: "2026-09-23T21:00:00",
     });
   });
 

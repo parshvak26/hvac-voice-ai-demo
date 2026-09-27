@@ -73,7 +73,7 @@ export function validateBookingDetailsBody(
     return { ok: false, code: "invalid_request", message: "Choose a date within the next 30 days." };
   }
   if (!isBookableTime(requestedTime)) {
-    return { ok: false, code: "invalid_request", message: "Choose an available time from 8:00 AM to 5:00 PM." };
+    return { ok: false, code: "invalid_request", message: "Choose an available appointment start time from 8:00 AM to 8:00 PM." };
   }
 
   return {

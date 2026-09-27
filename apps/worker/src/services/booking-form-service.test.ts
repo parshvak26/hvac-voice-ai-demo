@@ -68,6 +68,21 @@ describe("booking form eligibility", () => {
       .resolves.toMatchObject({ token: "signed-token", suggestedDate: null, suggestedTime: null });
   });
 
+  it("carries a confirmed 7 PM request into the form", async () => {
+    const aggregate = completedAggregate({
+      preferredDate: "2026-10-02",
+      preferredTime: "19:00",
+      preferredTimeConfidence: "high",
+    });
+    const issue = vi.fn().mockResolvedValue({
+      token: "signed-token",
+      expiresAt: "2026-09-27T13:02:00.000Z",
+    });
+
+    await expect(createBookingFormOffer(aggregate, { issue, validate: vi.fn() }, Date.parse("2026-09-27T12:05:00.000Z")))
+      .resolves.toMatchObject({ suggestedDate: "2026-10-02", suggestedTime: "19:00" });
+  });
+
   it("does not offer appointment booking for an emergency call", () => {
     expect(canCollectBookingDetails(completedAggregate({ urgency: "emergency" }))).toBe(false);
   });
