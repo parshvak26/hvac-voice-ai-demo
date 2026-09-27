@@ -6,6 +6,7 @@ import { companyConfig } from "./config/company";
 import { demoReducer, initialDemoState } from "./lib/demo-state";
 import { MockDemoCallClient } from "./lib/mock-demo-call-client";
 import {
+  activeDemoRequestStorageKey,
   UnconfiguredDemoCallClient,
   WorkerDemoCallClient,
 } from "./lib/worker-demo-call-client";
@@ -56,17 +57,40 @@ export default function App() {
 
   useEffect(() => {
     if (client.mode !== "live") return;
-    const controller = new AbortController();
-    void client.resumeDemoCall(handleStatusChange, controller.signal)
-      .then((result) => {
-        if (result) handleComplete(result);
-      })
-      .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-        const message = error instanceof Error ? error.message : "The saved demo could not be restored.";
-        handleStatusChange("failed", message);
-      });
-    return () => controller.abort();
+    let controller = new AbortController();
+    let resumeAttempt = 0;
+
+    const resumeSavedCall = (resetStaleResult = false) => {
+      controller.abort();
+      controller = new AbortController();
+      const attempt = ++resumeAttempt;
+
+      if (resetStaleResult) dispatch({ type: "reset" });
+
+      void client.resumeDemoCall(handleStatusChange, controller.signal)
+        .then((result) => {
+          if (attempt === resumeAttempt && result) handleComplete(result);
+        })
+        .catch((error: unknown) => {
+          if (attempt !== resumeAttempt) return;
+          if (error instanceof DOMException && error.name === "AbortError") return;
+          const message = error instanceof Error ? error.message : "The saved demo could not be restored.";
+          handleStatusChange("failed", message);
+        });
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== activeDemoRequestStorageKey || !event.newValue) return;
+      resumeSavedCall(true);
+    };
+
+    resumeSavedCall();
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      resumeAttempt += 1;
+      controller.abort();
+      window.removeEventListener("storage", handleStorage);
+    };
   }, [client, handleComplete, handleStatusChange]);
 
   return (

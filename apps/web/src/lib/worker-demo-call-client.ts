@@ -57,7 +57,7 @@ const lifecycle: DemoCallStatus[] = [
   "call_ended",
   "analysis_pending",
 ];
-const savedRequestStorageKey = "hvac-demo-active-request-v1";
+export const activeDemoRequestStorageKey = "hvac-demo-active-request-v1";
 const savedRequestMaxAgeMilliseconds = 2 * 60 * 60_000;
 const recoveryHashPrefix = "#demo-request=";
 
@@ -403,7 +403,7 @@ export class WorkerDemoCallClient implements DemoCallClient {
     const serialized = JSON.stringify({ requestId, savedAt: this.now() });
     for (const storage of [this.storage, this.persistentStorage]) {
       try {
-        storage?.setItem(savedRequestStorageKey, serialized);
+        storage?.setItem(activeDemoRequestStorageKey, serialized);
       } catch {
         // Storage can be unavailable in privacy-restricted browsers. The live call still works.
       }
@@ -418,7 +418,7 @@ export class WorkerDemoCallClient implements DemoCallClient {
   private readSavedRequestId(): string | null {
     for (const storage of [this.storage, this.persistentStorage]) {
       try {
-        const raw = storage?.getItem(savedRequestStorageKey);
+        const raw = storage?.getItem(activeDemoRequestStorageKey);
         if (!raw) continue;
         const saved = JSON.parse(raw) as unknown;
         if (
@@ -454,7 +454,7 @@ export class WorkerDemoCallClient implements DemoCallClient {
   clearSavedDemoCall(): void {
     for (const storage of [this.storage, this.persistentStorage]) {
       try {
-        storage?.removeItem(savedRequestStorageKey);
+        storage?.removeItem(activeDemoRequestStorageKey);
       } catch {
         // Clearing an unavailable storage area is best effort.
       }
