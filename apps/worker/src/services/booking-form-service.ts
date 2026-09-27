@@ -31,10 +31,6 @@ export function canCollectBookingDetails(
     aggregate.request.status === "complete" &&
     aggregate.call?.status === "complete" &&
     analysis &&
-    analysis.leadQualified &&
-    analysis.appointmentInterest &&
-    analysis.bookingEligible === true &&
-    !analysis.humanRequested &&
     analysis.urgency !== "emergency",
   );
 }
