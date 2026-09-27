@@ -416,6 +416,18 @@ export class WorkerDemoCallClient implements DemoCallClient {
   }
 
   private readSavedRequestId(): string | null {
+    // An explicit recovery link identifies the call the user is trying to
+    // restore, so it must win over an older request left in browser storage.
+    try {
+      const requestId = this.recoveryUrl?.readRequestId();
+      if (requestId && requestIdPattern.test(requestId)) {
+        this.saveRequestId(requestId);
+        return requestId;
+      }
+    } catch {
+      // Fall back to browser storage when URL recovery is unavailable.
+    }
+
     for (const storage of [this.storage, this.persistentStorage]) {
       try {
         const raw = storage?.getItem(activeDemoRequestStorageKey);
@@ -438,15 +450,6 @@ export class WorkerDemoCallClient implements DemoCallClient {
       } catch {
         // Try the second storage area before giving up on recovery.
       }
-    }
-    try {
-      const requestId = this.recoveryUrl?.readRequestId();
-      if (requestId && requestIdPattern.test(requestId)) {
-        this.saveRequestId(requestId);
-        return requestId;
-      }
-    } catch {
-      // URL recovery is best effort when browser navigation is restricted.
     }
     return null;
   }

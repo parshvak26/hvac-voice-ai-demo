@@ -221,6 +221,36 @@ describe("WorkerDemoCallClient", () => {
       .resolves.toMatchObject({ analysis: completeResult.analysis });
   });
 
+  it("prefers an explicit recovery URL over a stale saved request", async () => {
+    const staleRequestId = "00000000-0000-4000-8000-000000000124";
+    const storage = createStorage();
+    storage.setItem("hvac-demo-active-request-v1", JSON.stringify({
+      requestId: staleRequestId,
+      savedAt: 1_000,
+    }));
+    let requestedUrl = "";
+    const client = new WorkerDemoCallClient("https://api.example.test", {
+      storage,
+      recoveryUrl: {
+        readRequestId: () => requestId,
+        saveRequestId: () => undefined,
+        clearRequestId: () => undefined,
+      },
+      request: async (input) => {
+        requestedUrl = String(input);
+        return new Response(JSON.stringify(completeResult), { status: 200 });
+      },
+      sleep: async () => undefined,
+      now: () => 1_001,
+    });
+
+    await expect(client.resumeDemoCall(() => undefined))
+      .resolves.toMatchObject({ analysis: completeResult.analysis });
+    expect(requestedUrl).toContain(requestId);
+    expect(storage.getItem("hvac-demo-active-request-v1")).toContain(requestId);
+    expect(storage.getItem("hvac-demo-active-request-v1")).not.toContain(staleRequestId);
+  });
+
   it("ignores expired or malformed saved call state", async () => {
     const storage = createStorage();
     storage.setItem("hvac-demo-active-request-v1", JSON.stringify({
