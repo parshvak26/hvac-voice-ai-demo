@@ -13,7 +13,7 @@ When final setup starts, use these small steps in order.
 5. Copy the contents of `retell/AGENT_PROMPT.md` into the agent prompt.
 6. Set Welcome Message to `AI speaks first` and `Custom message`.
 7. Use this exact custom message: `Hi, I’m Sarah, an AI receptionist for a fictional HVAC demo. This call may be recorded, and nothing will be booked. What can I help with?`
-8. Set Pause Before Speaking to 1.0 second so the browser or phone audio session is ready before Sarah begins. If a test still clips the first word, increase it by 0.2 seconds and retest, up to 1.6 seconds.
+8. Set Pause Before Speaking to 0.6 seconds. This keeps a short carrier-audio buffer without making pickup feel slow. If a real phone test clips the first word, increase it by 0.2 seconds and retest.
 9. Set the maximum call duration to 5 minutes.
 10. Enable transcripts and recording because the final result flow needs them.
 11. If available, enable signed recording URLs and use a short retention period.
@@ -27,8 +27,8 @@ Use this as a starting point, then change one setting at a time and run `retell/
 - Model: start with Retell's current Suggested versatile model. Prefer response quality over the cheapest model for the public portfolio demo.
 - Transcription mode: Accurate.
 - Denoising: Remove noise for normal calls. Compare No denoising in a quiet room if short or soft words are dropped.
-- Response wait time: add roughly 0.6 to 1.0 seconds. Enable dynamic adjustment if available.
-- Interruption sensitivity: start near 0.7 to 0.8 and test with both genuine interruptions and background noise.
+- Response wait time: 450 milliseconds. This is fast enough to feel responsive while leaving a small buffer for natural pauses.
+- Interruption sensitivity: 0.85. Test with genuine interruptions and background noise; lower it slightly only if ordinary room noise repeatedly cuts Sarah off.
 - Backchanneling: Off while debugging turn-taking.
 - Background ambience: Off while debugging transcription.
 - Voice speed: around 0.95 to 1.0.
