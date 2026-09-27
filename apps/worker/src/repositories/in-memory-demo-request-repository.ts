@@ -264,12 +264,12 @@ export class InMemoryDemoRequestRepository implements DemoRequestRepository {
     if (!request || request.status !== "complete" || call?.status !== "complete") {
       return "unavailable";
     }
-    if (this.bookingDetails.has(record.demoRequestId)) {
-      return "already_submitted";
-    }
+    const existing = this.bookingDetails.get(record.demoRequestId);
+    if (existing && existing.status !== "failed") return "already_submitted";
     if (
       record.status === "calendar_pending" &&
-      [...this.bookingDetails.values()].some((booking) =>
+      [...this.bookingDetails.entries()].some(([demoRequestId, booking]) =>
+        demoRequestId !== record.demoRequestId &&
         ["calendar_pending", "calendar_created"].includes(booking.status) &&
         booking.requestedDate === record.requestedDate &&
         booking.requestedTime === record.requestedTime &&

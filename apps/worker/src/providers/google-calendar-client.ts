@@ -157,6 +157,12 @@ export class GoogleCalendarClient implements CalendarClient {
       throw new CalendarUnavailableError("create_event", "network_error");
     }
     const body: unknown = await response.json().catch(() => null);
+    // The event ID is deterministic. A conflict means an earlier attempt reached
+    // Google but its response was lost, so treating it as success is the safe,
+    // idempotent outcome.
+    if (response.status === 409) {
+      return { eventId: input.eventId };
+    }
     if (!response.ok || !isRecord(body) || typeof body.id !== "string") {
       throw new CalendarUnavailableError(
         "create_event",

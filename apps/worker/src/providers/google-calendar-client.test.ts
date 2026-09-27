@@ -106,4 +106,33 @@ describe("GoogleCalendarClient", () => {
       end: { dateTime: "2026-09-23T16:00:00", timeZone: "America/Chicago" },
     });
   });
+
+  it("treats a duplicate deterministic event as an idempotent success", async () => {
+    const request = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        access_token: "access-token",
+        expires_in: 3600,
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        error: { code: 409, message: "The requested identifier already exists." },
+      }), { status: 409 }));
+    const client = new GoogleCalendarClient({
+      calendarId: "demo-calendar@example.com",
+      clientId: "client-id",
+      clientSecret: "client-secret",
+      refreshToken: "refresh-token",
+      request,
+    });
+
+    await expect(client.createEvent({
+      eventId: "hvacdemo0123456789abcdef",
+      summary: "Demo appointment",
+      description: "No real service will be dispatched.",
+      location: "100 Congress Avenue, Austin, TX 78701",
+      attendeeEmail: "customer@example.com",
+      startLocal: "2026-09-23T15:00:00",
+      endLocal: "2026-09-23T16:00:00",
+      timezone: "America/Chicago",
+    })).resolves.toEqual({ eventId: "hvacdemo0123456789abcdef" });
+  });
 });

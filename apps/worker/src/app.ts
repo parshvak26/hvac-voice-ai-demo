@@ -110,6 +110,25 @@ function rateLimitResponse(error: RateLimitError): Response {
   return response;
 }
 
+function calendarFailureCode(error: CalendarUnavailableError): string {
+  const httpStatusNames: Record<string, string> = {
+    http_400: "bad_request",
+    http_401: "unauthorized",
+    http_403: "forbidden",
+    http_404: "not_found",
+    http_409: "conflict",
+    http_429: "rate_limited",
+    http_500: "server_error",
+    http_503: "unavailable",
+  };
+  const rawReason = error.reason ?? "unknown";
+  const reason = (httpStatusNames[rawReason] ?? rawReason)
+    .toLowerCase()
+    .replace(/[^a-z_]+/g, "_")
+    .replace(/^_+|_+$/g, "") || "unknown";
+  return `${error.operation}_${reason}`.slice(0, 64);
+}
+
 export function createWorkerApp(options: WorkerAppOptions = {}) {
   const memoryRepository = new InMemoryDemoRequestRepository();
   const getRepository = (env: WorkerEnv) =>
@@ -771,10 +790,13 @@ export function createWorkerApp(options: WorkerAppOptions = {}) {
                 timezone: bookingTimezone,
               });
             } catch (error) {
+              const failureCode = error instanceof CalendarUnavailableError
+                ? calendarFailureCode(error)
+                : "unknown";
               try {
                 await repository.markCalendarBookingFailed(
                   aggregate.request.id,
-                  error instanceof CalendarUnavailableError ? error.operation : "unknown",
+                  failureCode,
                   new Date((options.now ?? Date.now)()).toISOString(),
                 );
               } catch {
@@ -827,7 +849,7 @@ export function createWorkerApp(options: WorkerAppOptions = {}) {
             writeWorkerLog(env, "error", "booking_details_failed", {
               errorCategory: "calendar_provider",
               httpStatus: 503,
-              result: error.operation,
+              result: calendarFailureCode(error),
             });
           } else {
             writeWorkerLog(env, "error", "booking_details_failed", {

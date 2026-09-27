@@ -323,6 +323,35 @@ export class SupabaseDemoRequestRepository implements DemoRequestRepository {
     if (!new Set(["created", "already_submitted", "slot_unavailable", "unavailable"]).has(String(result))) {
       throw new PersistenceError("map_booking_details_result");
     }
+    if (result === "already_submitted") {
+      const { data: retried, error: retryError } = await this.client
+        .from("booking_detail_submissions")
+        .update({
+          email: record.email.toLowerCase(),
+          address_line1: record.addressLine1,
+          city: record.city,
+          region: record.region,
+          postal_code: record.postalCode,
+          requested_date: record.requestedDate,
+          requested_time: record.requestedTime,
+          timezone: record.timezone,
+          status: record.status,
+          token_expires_at: record.tokenExpiresAt,
+          calendar_event_id: null,
+          calendar_error_code: null,
+          submitted_at: record.submittedAt,
+          updated_at: record.submittedAt,
+        })
+        .eq("demo_request_id", record.demoRequestId)
+        .eq("status", "failed")
+        .select("demo_request_id");
+      if (retryError?.code === "23505") return "slot_unavailable";
+      if (retryError || !Array.isArray(retried)) {
+        throw new PersistenceError("retry_booking_details", retryError?.code);
+      }
+      if (retried.length === 1) return "created";
+      if (retried.length > 1) throw new PersistenceError("map_booking_details_retry");
+    }
     return result as BookingDetailsSubmissionResult;
   }
 

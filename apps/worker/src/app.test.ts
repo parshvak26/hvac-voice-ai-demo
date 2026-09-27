@@ -10,6 +10,7 @@ import {
   RetellRejectedError,
   RetellUnavailableError,
 } from "./providers/retell-errors";
+import { CalendarUnavailableError } from "./providers/calendar-client";
 import type { WorkerEnv } from "./types/env";
 
 const env: WorkerEnv = {
@@ -269,6 +270,67 @@ describe("worker routes", () => {
       startLocal: "2026-09-09T15:00:00",
       eventId: expect.stringMatching(/^hvacdemo[0-9a-f]{32}$/),
     }]);
+  });
+
+  it("lets a failed calendar creation retry safely", async () => {
+    let now = Date.parse("2026-09-08T18:00:00.000Z");
+    let createAttempts = 0;
+    const app = createWorkerApp({
+      now: () => now,
+      calendarClient: {
+        async listBusy() { return []; },
+        async createEvent(input) {
+          createAttempts += 1;
+          if (createAttempts === 1) {
+            throw new CalendarUnavailableError("create_event", "http_503");
+          }
+          return { eventId: input.eventId };
+        },
+      },
+    });
+    const calendarEnv = {
+      ...env,
+      DEMO_DETAILS_FORM_ENABLED: "true" as const,
+      DEMO_BOOKING_ENABLED: "true" as const,
+      HASH_SALT: "test-secret-with-enough-entropy-for-calendar-retry",
+    };
+    const createResponse = await app.fetch(createRequest({
+      phoneNumber: "5125551234",
+      consentToAiCall: true,
+      consentToRecording: true,
+    }), calendarEnv);
+    const created = await createResponse.json<CreateDemoCallResponse>();
+    now += 8_000;
+    const resultResponse = await app.fetch(new Request(
+      `http://localhost:8787/api/demo-result/${created.requestId}`,
+      { headers: { Origin: "http://localhost:5173" } },
+    ), calendarEnv);
+    const result = await resultResponse.json<DemoResultResponse>();
+    const detailsRequest = () => new Request(
+      "http://localhost:8787/api/booking-details",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Origin: "http://localhost:5173" },
+        body: JSON.stringify({
+          token: result.bookingForm?.token,
+          email: "customer@example.com",
+          addressLine1: "100 Congress Avenue",
+          city: "Austin",
+          region: "TX",
+          postalCode: "78701",
+          requestedDate: "2026-09-09",
+          requestedTime: "15:00",
+        }),
+      },
+    );
+
+    const failed = await app.fetch(detailsRequest(), calendarEnv);
+    expect(failed.status).toBe(503);
+
+    const retried = await app.fetch(detailsRequest(), calendarEnv);
+    expect(retried.status).toBe(201);
+    await expect(retried.json()).resolves.toMatchObject({ status: "calendar_created" });
+    expect(createAttempts).toBe(2);
   });
 
   it("does not expose the form while the feature is disabled", async () => {
