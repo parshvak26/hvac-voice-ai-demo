@@ -46,7 +46,7 @@ export function demoReducer(state: DemoState, action: DemoAction): DemoState {
   }
 
   if (action.type === "complete") {
-    if (!canTransition(state.status, "analysis_ready")) {
+    if (state.status !== "analysis_ready" && !canTransition(state.status, "analysis_ready")) {
       return state;
     }
 

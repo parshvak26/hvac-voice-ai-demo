@@ -215,6 +215,18 @@ export function StatusPanel({
         <BookingDetailsForm client={client} offer={state.result.bookingForm} />
       ) : null}
 
+      {state.status === "analysis_ready" &&
+      state.result?.analysis.appointmentInterest &&
+      state.result.analysis.urgency !== "emergency" &&
+      !state.result.bookingForm ? (
+        <div className="booking-form-pending" role="status">
+          <p>The service form is not ready yet. We are checking again automatically.</p>
+          <button className="text-button" type="button" onClick={() => window.location.reload()}>
+            Check for form now
+          </button>
+        </div>
+      ) : null}
+
       {["analysis_ready", "failed", "rate_limited"].includes(state.status) ? (
         <button className="text-button" type="button" onClick={onReset}>
           Reset demo

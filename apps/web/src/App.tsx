@@ -93,6 +93,46 @@ export default function App() {
     };
   }, [client, handleComplete, handleStatusChange]);
 
+  useEffect(() => {
+    if (
+      client.mode !== "live" ||
+      demoState.status !== "analysis_ready" ||
+      !demoState.result?.analysis.appointmentInterest ||
+      demoState.result.analysis.urgency === "emergency" ||
+      demoState.result.bookingForm
+    ) return;
+
+    const controller = new AbortController();
+    let timer: number;
+    let attempts = 0;
+    const checkAgain = () => {
+      timer = window.setTimeout(() => {
+        attempts += 1;
+        void client.resumeDemoCall(() => undefined, controller.signal)
+          .then((result) => {
+            if (controller.signal.aborted) return;
+            if (result?.bookingForm) handleComplete(result);
+            else if (attempts < 4) checkAgain();
+          })
+          .catch(() => {
+            if (!controller.signal.aborted && attempts < 4) checkAgain();
+          });
+      }, 2_500);
+    };
+    checkAgain();
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [
+    client,
+    demoState.status,
+    demoState.result?.analysis.appointmentInterest,
+    demoState.result?.analysis.urgency,
+    demoState.result?.bookingForm,
+    handleComplete,
+  ]);
+
   return (
     <div className="site-shell">
       <a className="skip-link" href="#main-content">
