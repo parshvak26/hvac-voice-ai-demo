@@ -220,7 +220,7 @@ export function StatusPanel({
       state.result.analysis.urgency !== "emergency" &&
       !state.result.bookingForm ? (
         <div className="booking-form-pending" role="status">
-          <p>The service form is not ready yet. We are checking again automatically.</p>
+          <p>The service form is unavailable right now. We will check again shortly. Form links expire one hour after the call; if this one has expired, reset the demo to start a new call.</p>
           <button className="text-button" type="button" onClick={() => window.location.reload()}>
             Check for form now
           </button>
