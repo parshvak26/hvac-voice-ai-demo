@@ -115,6 +115,16 @@ const callColumns =
 export class SupabaseDemoRequestRepository implements DemoRequestRepository {
   constructor(private readonly client: SupabaseClient) {}
 
+  async hasCreatedCalendarBooking(demoRequestId: string): Promise<boolean> {
+    const { data, error } = await this.client
+      .from("booking_detail_submissions")
+      .select("status")
+      .eq("demo_request_id", demoRequestId)
+      .maybeSingle();
+    if (error) throw new PersistenceError("find_calendar_booking", error.code);
+    return data?.status === "calendar_created";
+  }
+
   async reserveDemoRequest(
     record: CreateDemoRequestRecord,
     limits: AbuseLimits,

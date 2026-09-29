@@ -211,14 +211,24 @@ export function StatusPanel({
 
       <ResultDetails state={state} />
 
-      {state.status === "analysis_ready" && state.result?.bookingForm ? (
+      {state.status === "analysis_ready" && state.result?.bookingStatus === "calendar_created" ? (
+        <div className="booking-success" role="status">
+          <span aria-hidden="true">✓</span>
+          <div>
+            <strong>Demo appointment created</strong>
+            <p>Check the email address you entered for the Google Calendar invitation.</p>
+          </div>
+        </div>
+      ) : null}
+
+      {state.status === "analysis_ready" && state.result?.bookingForm && !state.result.bookingStatus ? (
         <BookingDetailsForm client={client} offer={state.result.bookingForm} />
       ) : null}
 
       {state.status === "analysis_ready" &&
       state.result?.analysis.appointmentInterest &&
       state.result.analysis.urgency !== "emergency" &&
-      !state.result.bookingForm ? (
+      !state.result.bookingForm && !state.result.bookingStatus ? (
         <div className="booking-form-pending" role="status">
           <p>The service form is unavailable right now. We will check again shortly. Form links expire one hour after the call; if this one has expired, reset the demo to start a new call.</p>
           <button className="text-button" type="button" onClick={() => window.location.reload()}>

@@ -27,6 +27,7 @@ export interface DemoRequestRepository {
     update: UpdateCallRecord,
   ): Promise<void>;
   findByPublicToken(publicToken: string): Promise<DemoRequestAggregate | null>;
+  hasCreatedCalendarBooking(demoRequestId: string): Promise<boolean>;
   applyRetellWebhook(
     update: RetellWebhookUpdate,
   ): Promise<RetellWebhookApplyResult>;

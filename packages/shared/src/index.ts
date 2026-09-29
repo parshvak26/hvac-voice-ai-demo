@@ -88,6 +88,7 @@ export interface DemoResultResponse {
   analysis?: DemoCallAnalysis;
   transcript?: PublicTranscriptLine[];
   bookingForm?: BookingFormOffer;
+  bookingStatus?: "calendar_created";
 }
 
 export type ApiErrorCode =

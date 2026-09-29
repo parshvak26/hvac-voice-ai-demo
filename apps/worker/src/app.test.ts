@@ -272,6 +272,15 @@ describe("worker routes", () => {
       startLocal: "2026-09-09T19:00:00",
       eventId: expect.stringMatching(/^hvacdemo[0-9a-f]{32}$/),
     }]);
+
+    const refreshedResult = await app.fetch(new Request(
+      `http://localhost:8787/api/demo-result/${created.requestId}`,
+      { headers: { Origin: "http://localhost:5173" } },
+    ), calendarEnv);
+    expect(refreshedResult.status).toBe(200);
+    await expect(refreshedResult.json()).resolves.toMatchObject({
+      bookingStatus: "calendar_created",
+    });
   });
 
   it("lets a failed calendar creation retry safely", async () => {

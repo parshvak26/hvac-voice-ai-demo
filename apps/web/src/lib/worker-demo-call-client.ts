@@ -320,10 +320,14 @@ function parsePublicResult(value: unknown): DemoResultResponse | null {
   const bookingForm = value.bookingForm === undefined
     ? undefined
     : parseBookingForm(value.bookingForm);
+  const bookingStatus = value.bookingStatus === undefined
+    ? undefined
+    : value.bookingStatus === "calendar_created" ? "calendar_created" : null;
   if (
     !analysis ||
     !transcript ||
     (value.bookingForm !== undefined && !bookingForm) ||
+    bookingStatus === null ||
     (value.durationSeconds !== undefined && (
       typeof value.durationSeconds !== "number" ||
       !Number.isFinite(value.durationSeconds) ||
@@ -339,6 +343,7 @@ function parsePublicResult(value: unknown): DemoResultResponse | null {
     transcript,
     durationSeconds: value.durationSeconds as number | undefined,
     bookingForm: bookingForm ?? undefined,
+    bookingStatus,
   };
 }
 
@@ -520,6 +525,7 @@ export class WorkerDemoCallClient implements DemoCallClient {
           analysis: result.analysis!,
           transcript: result.transcript!,
           bookingForm: result.bookingForm,
+          bookingStatus: result.bookingStatus,
         };
       }
     }

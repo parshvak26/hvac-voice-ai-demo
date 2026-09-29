@@ -28,6 +28,10 @@ export class InMemoryDemoRequestRepository implements DemoRequestRepository {
   private readonly webhookFingerprints = new Set<string>();
   private readonly bookingDetails = new Map<string, StoredBookingDetails>();
 
+  async hasCreatedCalendarBooking(demoRequestId: string): Promise<boolean> {
+    return this.bookingDetails.get(demoRequestId)?.status === "calendar_created";
+  }
+
   async reserveDemoRequest(
     record: CreateDemoRequestRecord,
     limits: AbuseLimits,

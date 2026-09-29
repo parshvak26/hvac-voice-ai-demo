@@ -39,6 +39,7 @@ export interface DemoCallResult {
   analysis: DemoCallAnalysis;
   transcript: PublicTranscriptLine[];
   bookingForm?: BookingFormOffer;
+  bookingStatus?: "calendar_created";
 }
 
 export interface DemoCallClient {

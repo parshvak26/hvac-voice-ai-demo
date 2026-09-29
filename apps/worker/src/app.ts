@@ -906,6 +906,9 @@ export function createWorkerApp(options: WorkerAppOptions = {}) {
             env.DEMO_DETAILS_FORM_ENABLED === "true"
           ) {
             const aggregate = await repository.findByPublicToken(publicToken);
+            if (aggregate && await repository.hasCreatedCalendarBooking(aggregate.request.id)) {
+              result = { ...result, bookingStatus: "calendar_created" };
+            }
             const bookingForm = aggregate
               ? await createBookingFormOffer(
                   aggregate,

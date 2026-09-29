@@ -153,6 +153,18 @@ Expected behavior:
 - Asks whether eight means 8 AM or 8 PM.
 - Keeps booking eligibility false until the caller confirms.
 
+## Test 12a: Two o'clock during service hours
+
+Say:
+
+“I’m in Austin. Friday, two o’clock.”
+
+Expected behavior:
+
+- Infers 2 PM because 2 AM is outside the valid 8 AM–8 PM start times.
+- Recaps Friday at 2 PM without asking “2 AM or 2 PM.”
+- Keeps the structured time as `14:00` with high confidence when the date is clear.
+
 ## Test 13: Booking feature flag is off
 
 Complete a normal call while `DEMO_BOOKING_ENABLED=false`.
